@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in | GrainFlow</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%BE%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/login.css">
+</head>
+<body>
+  <main class="login-page">
+    <div class="login-shell">
+
+      <!-- left: form -->
+      <section class="login-main">
+        <div class="gf-brand">
+          <div class="gf-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22V8"/>
+              <path d="M12 2c1.6 1.4 1.6 3.6 0 5-1.6-1.4-1.6-3.6 0-5z"/>
+              <path d="M12 11c-2.2 0-3.6-1.3-3.8-3.4 2.2-.1 3.7 1 3.8 3.4z"/>
+              <path d="M12 11c2.2 0 3.6-1.3 3.8-3.4-2.2-.1-3.7 1-3.8 3.4z"/>
+              <path d="M12 16c-2.2 0-3.6-1.3-3.8-3.4 2.2-.1 3.7 1 3.8 3.4z"/>
+              <path d="M12 16c2.2 0 3.6-1.3 3.8-3.4-2.2-.1-3.7 1-3.8 3.4z"/>
+            </svg>
+          </div>
+          <span class="gf-wordmark">GrainFlow</span>
+        </div>
+
+        <div class="login-form-area">
+
+          <!-- step 1: sign in -->
+          <div id="step-signin">
+            <h1 class="login-title">Sign in</h1>
+            <p class="login-sub">Use the username and password you were given.</p>
+
+            <form id="login-form" class="login-form" novalidate>
+              <div id="login-error" class="gf-note gf-note-red gf-hidden" role="alert">
+                <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span></span>
+              </div>
+
+              <div class="gf-field">
+                <label class="gf-label" for="username">Username</label>
+                <div class="gf-input-wrap">
+                  <i class="bi bi-person gf-icon" aria-hidden="true"></i>
+                  <input class="gf-input" id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" autofocus>
+                </div>
+              </div>
+
+              <div class="gf-field">
+                <label class="gf-label" for="password">Password</label>
+                <div class="gf-input-wrap">
+                  <i class="bi bi-lock gf-icon" aria-hidden="true"></i>
+                  <input class="gf-input" id="password" name="password" type="password" autocomplete="current-password">
+                  <button type="button" class="gf-input-action" data-toggle-password="password" aria-label="Show password" aria-pressed="false">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+
+              <button id="login-btn" class="gf-btn gf-btn-dark gf-btn-block" type="submit"><span>Sign in</span></button>
+            </form>
+
+            <p class="login-help">Forgot your password? Ask the owner to reset it for you.</p>
+          </div>
+
+          <!-- step 2: forced password change -->
+          <div id="step-change" class="gf-hidden">
+            <h1 class="login-title">Set a new password</h1>
+            <p class="login-sub">Your password was reset. Choose a new one to continue.</p>
+
+            <form id="change-form" class="login-form" novalidate>
+              <div id="change-error" class="gf-note gf-note-red gf-hidden" role="alert">
+                <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span></span>
+              </div>
+
+              <div class="gf-field">
+                <label class="gf-label" for="current-password">Current password</label>
+                <div class="gf-input-wrap">
+                  <i class="bi bi-lock gf-icon" aria-hidden="true"></i>
+                  <input class="gf-input" id="current-password" type="password" autocomplete="current-password">
+                </div>
+              </div>
+
+              <div class="gf-field">
+                <label class="gf-label" for="new-password">New password</label>
+                <div class="gf-input-wrap">
+                  <i class="bi bi-key gf-icon" aria-hidden="true"></i>
+                  <input class="gf-input" id="new-password" type="password" autocomplete="new-password">
+                  <button type="button" class="gf-input-action" data-toggle-password="new-password" aria-label="Show password" aria-pressed="false">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="gf-field">
+                <label class="gf-label" for="confirm-password">Confirm new password</label>
+                <div class="gf-input-wrap">
+                  <i class="bi bi-key gf-icon" aria-hidden="true"></i>
+                  <input class="gf-input" id="confirm-password" type="password" autocomplete="new-password">
+                </div>
+              </div>
+
+              <button id="change-btn" class="gf-btn gf-btn-dark gf-btn-block" type="submit"><span>Save password and continue</span></button>
+            </form>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- right: sample preview of the app -->
+      <aside class="login-panel" aria-hidden="true">
+        <p class="panel-head reveal">See the mill and the cereal shop together.</p>
+        <div class="panel-modules reveal" style="--d:.08s">
+          <span class="gf-chip"><span class="gf-chip-dot" style="background:var(--mill)"></span>Posho mill</span>
+          <span class="gf-chip"><span class="gf-chip-dot" style="background:var(--green)"></span>Cereals</span>
+        </div>
+
+        <div class="panel-card reveal" style="--d:.16s">
+          <h2>Today so far</h2>
+          <div class="stat-row"><span>Billed</span><strong>KES 48,600</strong></div>
+          <div class="stat-row"><span>Collected at till</span><strong>KES 46,100</strong></div>
+          <div class="stat-row"><span>On credit</span><strong>KES 2,500</strong></div>
+          <div class="progress"><span></span></div>
+          <p class="progress-note">95% collected the same day</p>
+        </div>
+
+        <div class="panel-card offset reveal" style="--d:.24s">
+          <div class="job-row">
+            <div class="gf-avatar" style="background:#6fc1b0">W</div>
+            <div class="job-main"><div class="job-name">Wanjiru K</div><div class="job-meta">Maize, 80 kg</div></div>
+            <span class="gf-badge gf-badge-green"><i class="bi bi-check2"></i>Ready</span>
+          </div>
+          <div class="job-row">
+            <div class="gf-avatar" style="background:#e8935a">O</div>
+            <div class="job-main"><div class="job-name">Otieno B</div><div class="job-meta">Millet, 45 kg</div></div>
+            <span class="gf-badge gf-badge-amber"><i class="bi bi-clock"></i>Milling</span>
+          </div>
+        </div>
+
+        <p class="panel-foot reveal" style="--d:.32s">Sample preview</p>
+      </aside>
+
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/login.js"></script>
+</body>
+</html>

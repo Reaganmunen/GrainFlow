@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GrainFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/theme.css">
+</head>
+<body style="display:grid;place-items:center;padding:24px">
+  <!-- Temporary landing page: replaced by the module chooser and app shell -->
+  <div style="background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);padding:32px;max-width:420px;width:100%">
+    <h1 style="font-size:22px;font-weight:600;letter-spacing:-.01em">You are signed in</h1>
+    <p id="who" style="margin-top:6px;color:var(--ink-2)"></p>
+    <button id="logout" class="gf-btn gf-btn-dark" style="margin-top:20px">Sign out</button>
+  </div>
+  <script src="/js/api.js"></script>
+  <script>
+    if (!Session.active) { Session.clear(); location.replace('/login.html'); }
+    const u = Session.user || {};
+    document.getElementById('who').textContent = u.full_name || u.name || u.username || '';
+    document.getElementById('logout').addEventListener('click', async () => {
+      try { await Api.post('/auth/logout'); } catch (e) { /* still sign out locally */ }
+      Session.clear(); location.replace('/login.html');
+    });
+  </script>
+</body>
+</html>
