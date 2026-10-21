@@ -35,6 +35,15 @@ class User {
 
   /** Array of permission codes, e.g. ['sales.create', 'stock.view'] */
   static async permissions(userId, ctx) {
+    // the OWNER role can do everything, including sales in both modules, whatever the role_permissions table says
+    const owner = await exec(ctx).query(
+      `SELECT 1 FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = $1 AND upper(r.code) = 'OWNER'`, [userId]
+    );
+    if (owner.rows.length) {
+      const all = (await exec(ctx).query('SELECT code FROM permissions ORDER BY code')).rows.map((r) => r.code);
+      // the per-module sales checks are enforced in middlewares/saleModule.js, so make sure they are always present
+      return [...new Set([...all, 'sales.mill', 'sales.cereal'])].sort();
+    }
     const { rows } = await exec(ctx).query(
       `SELECT p.code FROM users u
          JOIN role_permissions rp ON rp.role_id = u.role_id
