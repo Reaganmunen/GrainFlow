@@ -103,10 +103,10 @@
     Api.post(`/receipts/${p.receipt.id}/printed`, {}).catch(() => {});
   }
 
-  function showReceipt(p, change) {
+  function showReceipt(p, change, opts = {}) {
     const phone = (p.sale && (p.sale.customer_phone || p.sale.walkin_phone)) || '';
     const m = UI.modal({
-      title: 'Sale complete',
+      title: opts.title || 'Sale complete',
       body: `${change > 0 ? `<div class="gf-note gf-note-amber"><i class="bi bi-cash-coin"></i><span>Change to give: <b>KES ${fmt(change)}</b></span></div>` : ''}
         ${paperHtml(p)}
         <div class="gf-field"><label class="gf-label" for="rc-phone">WhatsApp number</label>
@@ -114,7 +114,7 @@
         <div class="gf-hint gf-hidden" id="rc-wa"></div>`,
       foot: `<button class="gf-btn gf-btn-ghost" type="button" data-print><i class="bi bi-printer"></i>Print</button>
         <button class="gf-btn gf-btn-ghost" type="button" data-wa><i class="bi bi-whatsapp"></i>WhatsApp</button>
-        <button class="gf-btn gf-btn-green" type="button" data-close>New sale</button>`,
+        <button class="gf-btn gf-btn-green" type="button" data-close>${esc(opts.closeLabel || 'New sale')}</button>`,
     });
     m.el.querySelector('[data-print]').addEventListener('click', () => printReceipt(p));
     m.el.querySelector('[data-wa]').addEventListener('click', async (e) => {
@@ -132,6 +132,86 @@
         }
       } catch (err) { m.error(err.message); }
       m.busy(e.currentTarget, false);
+    });
+  }
+
+  /** M-Pesa prompt waiting screen. Calls onPaid() when confirmed, onRetry() when the cashier needs to pick another way. */
+  function stkWait({ paymentId, phone, amount, onPaid, onRetry }) {
+    const canCode = GF.can('payments.mpesa_manual');
+    const m = UI.modal({
+      title: 'M-Pesa payment',
+      body: `<div class="stk">
+          <div class="stk-ico" id="stk-ico"><i class="bi bi-phone-vibrate"></i></div>
+          <h3 id="stk-h">Waiting for the customer</h3>
+          <p id="stk-p">A prompt for ${UI.money(amount)} was sent to ${esc(phone)}. Ask the customer to enter their M-Pesa PIN.</p>
+          <div class="stk-time" id="stk-t">0s</div>
+        </div>
+        <div id="stk-rescue" class="gf-stack gf-hidden">
+          <div class="gf-hint" id="stk-note">Taking long? The customer may have missed the prompt.</div>
+          <button type="button" class="gf-btn gf-btn-ghost" data-query>Check with Safaricom</button>
+          ${canCode ? `<div class="gf-field"><label class="gf-label" for="stk-code">Or enter the code from the M-Pesa SMS</label>
+            <div class="field-inline"><input class="gf-input plain" id="stk-code" placeholder="e.g. SJK4N8XYZ1" autocomplete="off" style="text-transform:uppercase"><button type="button" class="gf-btn gf-btn-dark gf-btn-sm" data-confirm>Confirm</button></div></div>` : ''}
+        </div>`,
+      foot: '<button class="gf-btn gf-btn-ghost" type="button" data-cancel>Cancel prompt</button>',
+    });
+    let done = false, expired = false;
+    const started = Date.now();
+    const alive = () => document.body.contains(m.el) && !done;
+    const $m = (sel) => m.el.querySelector(sel);
+
+    const fail = (text) => {
+      done = true;
+      $m('#stk-ico').innerHTML = '<i class="bi bi-x-circle"></i>';
+      $m('#stk-ico').classList.add('is-bad');
+      $m('#stk-h').textContent = 'Payment not completed';
+      $m('#stk-p').textContent = text || 'The payment did not go through.';
+      $m('#stk-t').textContent = '';
+      $m('#stk-rescue').classList.add('gf-hidden');
+      const foot = $m('.gf-modal-foot');
+      foot.innerHTML = '<button class="gf-btn gf-btn-ghost" type="button" data-close>Close</button><button class="gf-btn gf-btn-dark" type="button" data-retry>Try another way</button>';
+      foot.querySelector('[data-retry]').addEventListener('click', () => { m.close(); onRetry(); });
+    };
+    const paid = () => { done = true; m.close(); UI.toast('M-Pesa payment received'); onPaid(); };
+
+    async function tick() {
+      if (!alive()) return;
+      try {
+        const st = await Api.get(`/payments/${paymentId}/stk-status`);
+        if (!alive()) return;
+        if (st.state === 'CONFIRMED') { paid(); return; }
+        if (st.state === 'FAILED' || st.state === 'CANCELLED') { fail(st.result_desc); return; }
+      } catch (_) { /* keep polling */ }
+      const secs = Math.round((Date.now() - started) / 1000);
+      $m('#stk-t').textContent = `${secs}s`;
+      if (secs >= 35) $m('#stk-rescue').classList.remove('gf-hidden');
+      if (secs >= 65 && !expired) { expired = true; Api.post('/payments/expire-stale', {}).catch(() => {}); }
+      setTimeout(tick, 2500);
+    }
+    setTimeout(tick, 2500);
+
+    m.el.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-cancel]')) {
+        done = true;
+        try { await Api.post(`/payments/${paymentId}/cancel`, {}); } catch (_) { /* may already be closed */ }
+        m.close(); onRetry();
+      } else if (e.target.closest('[data-query]')) {
+        const b = e.target.closest('[data-query]');
+        m.busy(b, true);
+        try {
+          const r = await Api.post(`/payments/${paymentId}/stk-query`, {});
+          $m('#stk-note').textContent = r.note || 'No result yet.';
+          if (r.current && r.current.state === 'CONFIRMED') paid();
+          else if (r.current && (r.current.state === 'FAILED' || r.current.state === 'CANCELLED')) fail(r.note);
+        } catch (err) { m.error(err.message); }
+        m.busy(b, false);
+      } else if (e.target.closest('[data-confirm]')) {
+        const b = e.target.closest('[data-confirm]');
+        const code = $m('#stk-code').value.trim().toUpperCase();
+        if (!code) { m.error('Enter the M-Pesa transaction code.'); return; }
+        m.error(''); m.busy(b, true);
+        try { await Api.post(`/payments/${paymentId}/confirm-manually`, { mpesa_receipt: code }); paid(); }
+        catch (err) { m.error(err.message); m.busy(b, false); }
+      }
     });
   }
 
@@ -606,84 +686,7 @@
           });
         }
 
-        function waitStk({ paymentId, phone, amount }) {
-          const canCode = GF.can('payments.mpesa_manual');
-          const m = UI.modal({
-            title: 'M-Pesa payment',
-            body: `<div class="stk">
-                <div class="stk-ico" id="stk-ico"><i class="bi bi-phone-vibrate"></i></div>
-                <h3 id="stk-h">Waiting for the customer</h3>
-                <p id="stk-p">A prompt for ${UI.money(amount)} was sent to ${esc(phone)}. Ask the customer to enter their M-Pesa PIN.</p>
-                <div class="stk-time" id="stk-t">0s</div>
-              </div>
-              <div id="stk-rescue" class="gf-stack gf-hidden">
-                <div class="gf-hint" id="stk-note">Taking long? The customer may have missed the prompt.</div>
-                <button type="button" class="gf-btn gf-btn-ghost" data-query>Check with Safaricom</button>
-                ${canCode ? `<div class="gf-field"><label class="gf-label" for="stk-code">Or enter the code from the M-Pesa SMS</label>
-                  <div class="field-inline"><input class="gf-input plain" id="stk-code" placeholder="e.g. SJK4N8XYZ1" autocomplete="off" style="text-transform:uppercase"><button type="button" class="gf-btn gf-btn-dark gf-btn-sm" data-confirm>Confirm</button></div></div>` : ''}
-              </div>`,
-            foot: '<button class="gf-btn gf-btn-ghost" type="button" data-cancel>Cancel prompt</button>',
-          });
-          let done = false, expired = false;
-          const started = Date.now();
-          const alive = () => document.body.contains(m.el) && !done;
-          const $m = (sel) => m.el.querySelector(sel);
-
-          const fail = (text) => {
-            done = true;
-            $m('#stk-ico').innerHTML = '<i class="bi bi-x-circle"></i>';
-            $m('#stk-ico').classList.add('is-bad');
-            $m('#stk-h').textContent = 'Payment not completed';
-            $m('#stk-p').textContent = text || 'The payment did not go through.';
-            $m('#stk-t').textContent = '';
-            $m('#stk-rescue').classList.add('gf-hidden');
-            const foot = $m('.gf-modal-foot');
-            foot.innerHTML = '<button class="gf-btn gf-btn-ghost" type="button" data-close>Close</button><button class="gf-btn gf-btn-dark" type="button" data-retry>Try another way</button>';
-            foot.querySelector('[data-retry]').addEventListener('click', () => { m.close(); openPay(); });
-          };
-          const paid = () => { done = true; m.close(); UI.toast('M-Pesa payment received'); completeAfterStk(); };
-
-          async function tick() {
-            if (!alive()) return;
-            try {
-              const st = await Api.get(`/payments/${paymentId}/stk-status`);
-              if (!alive()) return;
-              if (st.state === 'CONFIRMED') { paid(); return; }
-              if (st.state === 'FAILED' || st.state === 'CANCELLED') { fail(st.result_desc); return; }
-            } catch (_) { /* keep polling */ }
-            const secs = Math.round((Date.now() - started) / 1000);
-            $m('#stk-t').textContent = `${secs}s`;
-            if (secs >= 35) $m('#stk-rescue').classList.remove('gf-hidden');
-            if (secs >= 65 && !expired) { expired = true; Api.post('/payments/expire-stale', {}).catch(() => {}); }
-            setTimeout(tick, 2500);
-          }
-          setTimeout(tick, 2500);
-
-          m.el.addEventListener('click', async (e) => {
-            if (e.target.closest('[data-cancel]')) {
-              done = true;
-              try { await Api.post(`/payments/${paymentId}/cancel`, {}); } catch (_) { /* may already be closed */ }
-              m.close(); openPay();
-            } else if (e.target.closest('[data-query]')) {
-              const b = e.target.closest('[data-query]');
-              m.busy(b, true);
-              try {
-                const r = await Api.post(`/payments/${paymentId}/stk-query`, {});
-                $m('#stk-note').textContent = r.note || 'No result yet.';
-                if (r.current && r.current.state === 'CONFIRMED') paid();
-                else if (r.current && (r.current.state === 'FAILED' || r.current.state === 'CANCELLED')) fail(r.note);
-              } catch (err) { m.error(err.message); }
-              m.busy(b, false);
-            } else if (e.target.closest('[data-confirm]')) {
-              const b = e.target.closest('[data-confirm]');
-              const code = $m('#stk-code').value.trim().toUpperCase();
-              if (!code) { m.error('Enter the M-Pesa transaction code.'); return; }
-              m.error(''); m.busy(b, true);
-              try { await Api.post(`/payments/${paymentId}/confirm-manually`, { mpesa_receipt: code }); paid(); }
-              catch (err) { m.error(err.message); m.busy(b, false); }
-            }
-          });
-        }
+        const waitStk = (args) => stkWait({ ...args, onPaid: completeAfterStk, onRetry: openPay });
 
         // ------------------------------------------------------------ events
         $('#t-search').addEventListener('input', (e) => { s.search = e.target.value.trim(); paintGrid(); });
@@ -798,6 +801,8 @@
       },
     });
   }
+
+  window.GFPay = { showReceipt, printReceipt, stkWait, PHONE_OK, METHOD_NAME };
 
   tillPage({ path: 'cereal/till', module: 'CEREAL', title: 'Cereal till' });
   tillPage({ path: 'mill/till', module: 'MILL', title: 'Mill till' });
