@@ -1,0 +1,88 @@
+/* Owner dashboard. Uses the theme tokens; module colours: mill is amber, cereal is green. */
+
+.dash-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.dash-title { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+.dash-sub { color: var(--muted); font-size: 13px; }
+.dash-tools { display: flex; align-items: center; gap: 8px; }
+.dash-tools .gf-seg { min-width: 250px; }
+.dash-neg { color: var(--red-ink); }
+
+.dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.dash-card { background: var(--card); border-radius: var(--r-card); box-shadow: var(--shadow-card); padding: 16px 18px 18px; min-width: 0; }
+.dash-wide { grid-column: 1 / -1; }
+.dash-card > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.dash-card h3 { font-size: 14.5px; font-weight: 600; }
+.dash-more { font-size: 12.5px; font-weight: 500; color: var(--green-deep); text-decoration: none; }
+.dash-more:hover { text-decoration: underline; }
+.dash-empty { display: flex; align-items: center; gap: 8px; padding: 18px 4px; color: var(--muted); font-size: 13.5px; }
+.dash-empty.ok i { color: var(--green-deep); font-size: 17px; }
+
+.dash-legend { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin: 0 2px 0 8px; vertical-align: baseline; }
+.dash-legend .sw:first-child { margin-left: 0; }
+.sw-sales { background: var(--dark); }
+.sw-col { background: var(--green); }
+.sw-cash { background: var(--green); }
+.sw-mp { background: var(--mill); }
+.sw-oth { background: var(--muted); }
+.fact .sw { margin: 0 6px 0 0; }
+
+/* 14-day trend */
+.trend-sum { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.trend-sum b { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.trend-sum span { color: var(--muted); font-size: 13px; }
+.trend { display: flex; align-items: flex-end; gap: 6px; height: 170px; }
+.bar { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; }
+.bar-cols { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 2px; min-height: 0; }
+.bar-cols span { flex: 1; max-width: 14px; min-height: 2px; border-radius: 4px 4px 0 0; }
+.b-sales { background: var(--dark); }
+.b-col { background: var(--green); }
+.bar-day { text-align: center; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.bar.is-today .bar-day { color: var(--ink); font-weight: 600; }
+.bar:hover .b-sales { background: var(--dark-hover); }
+
+/* needs attention */
+.alert-list, .low-list, .debt-list { list-style: none; margin: 0; padding: 0; }
+.alert-list li + li { border-top: 1px solid var(--line); }
+.alert-list a, .alert-list li > div { display: flex; align-items: center; gap: 10px; padding: 10px 2px; color: inherit; text-decoration: none; }
+.alert-list a:hover .al-t { text-decoration: underline; }
+.al-ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--red-soft); color: var(--red-ink); font-size: 15px; }
+.al-t { flex: 1; min-width: 0; font-weight: 500; }
+.al-t small { display: block; color: var(--muted); font-weight: 400; font-size: 12.5px; }
+.al-go { color: var(--muted); font-size: 12px; }
+
+/* cash vs M-Pesa */
+.split { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--chip); margin-bottom: 14px; }
+.sp-cash { background: var(--green); }
+.sp-mp { background: var(--mill); }
+.sp-oth { background: var(--muted); }
+
+/* low stock */
+.low-list li { padding: 10px 0; }
+.low-list li + li { border-top: 1px solid var(--line); }
+.low-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.low-top strong { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.low-meter { height: 6px; border-radius: 3px; background: var(--chip); margin: 7px 0 5px; overflow: hidden; }
+.low-meter span { display: block; height: 100%; border-radius: 3px; background: var(--mill); }
+.low-meter span.is-out { background: var(--red-ink); }
+.low-sub { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); }
+
+/* credit and stock value rows */
+.debt-list li { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+.debt-list li + li { border-top: 1px solid var(--line); }
+.debt-list .gf-avatar { width: 30px; height: 30px; font-size: 12px; flex: none; }
+.debt-who { flex: 1; min-width: 0; }
+.debt-who strong { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.debt-who small { display: block; font-size: 12.5px; color: var(--muted); }
+.debt-list b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (max-width: 991px) {
+  .dash-grid { grid-template-columns: 1fr; }
+  .dash-tools { width: 100%; }
+  .dash-tools .gf-seg { flex: 1; min-width: 0; }
+}
+@media (max-width: 520px) {
+  .dash-card { padding: 14px 14px 16px; }
+  .trend { height: 140px; gap: 3px; }
+  .bar-day { font-size: 10px; }
+}
