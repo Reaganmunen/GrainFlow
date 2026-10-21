@@ -1,0 +1,71 @@
+/* Mill job board */
+.board {
+  display: grid; grid-template-columns: repeat(4, minmax(250px, 1fr)); gap: 14px; align-items: start;
+  overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity;
+}
+.col {
+  --col-bg: #e8e7e2;
+  scroll-snap-align: start; min-width: 0; padding: 12px; border-radius: var(--r-card); background: var(--col-bg);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.col.is-done { --col-bg: var(--green-panel); }
+.col-head { display: flex; align-items: center; gap: 8px; padding: 0 2px; }
+.col-head h3 { font-size: 14px; font-weight: 600; }
+.col-head .n { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; display: grid; place-items: center; background: rgba(0,0,0,.08); font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.col-head .meta { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+.job {
+  display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 16px;
+  background: var(--card); box-shadow: 0 1px 2px rgba(40, 40, 30, 0.06);
+}
+.job.is-alert { box-shadow: 0 0 0 1.5px #e9b8b3, 0 1px 2px rgba(40, 40, 30, 0.06); }
+.job-top { display: flex; align-items: center; gap: 10px; cursor: pointer; min-width: 0; }
+.job-top .gf-avatar { width: 32px; height: 32px; font-size: 12.5px; }
+.job-top .own { background: var(--dark); font-size: 15px; }
+.job-who { min-width: 0; flex: 1; }
+.job-who strong { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job-who span { display: block; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.job-meta .tk { margin-right: auto; }
+.pill { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 7px; background: var(--chip); color: var(--ink-2); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.pill.amber { background: var(--mill-soft); color: var(--mill-ink); }
+.pill.red { background: var(--red-soft); color: var(--red-ink); }
+.pill.green { background: var(--green-soft); color: var(--green-deep); }
+.job .gf-note { padding: 8px 10px; font-size: 12.5px; }
+
+.job-actions { display: flex; gap: 6px; }
+.job-btn {
+  flex: 1; height: 36px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--card);
+  font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.job-btn:hover:not(:disabled) { background: var(--chip); }
+.job-btn.primary { background: var(--green); border-color: var(--green); }
+.job-btn.primary:hover:not(:disabled) { background: var(--green-hover); }
+.job-btn.mill { background: #f2c15f; border-color: #f2c15f; }
+.job-btn.mill:hover:not(:disabled) { background: #e9b445; }
+.job-btn.quiet { flex: none; width: 36px; padding: 0; color: var(--ink-2); }
+.job-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.job.done { background: rgba(255, 255, 255, 0.55); box-shadow: none; padding: 10px 12px; gap: 6px; }
+.job.done .job-top { cursor: pointer; }
+
+.col-empty { padding: 18px 10px; text-align: center; color: var(--muted); font-size: 13px; border: 1px dashed #cfcec8; border-radius: 14px; }
+.col-add {
+  height: 34px; border: 0; background: transparent; color: var(--ink-2); font-weight: 500; font-size: 13px; cursor: pointer; border-radius: 10px;
+}
+.col-add:hover { background: rgba(0, 0, 0, 0.05); color: var(--ink); }
+
+.today {
+  padding: 14px; border-radius: 16px; background: var(--card); box-shadow: 0 1px 2px rgba(40, 40, 30, 0.06);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.today h4 { margin: 0; font-size: 14px; font-weight: 600; }
+.today .line { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
+.today .line b { color: var(--ink); font-weight: 600; }
+.bar { height: 6px; border-radius: 3px; background: var(--chip); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--green-deep); border-radius: 3px; }
+.today small { color: var(--muted); font-size: 12px; }
+
+@media (max-width: 991px) {
+  .board { grid-template-columns: repeat(4, minmax(270px, 82%)); }
+}

@@ -47,6 +47,10 @@
     if (!res.ok || (json && json.success === false)) {
       throw new ApiError((json && json.message) || 'Something went wrong. Try again.', res.status, json && json.code, json && json.details);
     }
+    // paged lists: keep the array as the return value, and expose { total, page, limit, pages } on it as .pagination
+    if (json && Array.isArray(json.data) && json.pagination) {
+      Object.defineProperty(json.data, 'pagination', { value: json.pagination, enumerable: false });
+    }
     return json ? json.data : null;
   }
 

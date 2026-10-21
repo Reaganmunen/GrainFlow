@@ -4,27 +4,66 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GrainFlow</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%BE%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/shell.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/mill.css">
 </head>
-<body style="display:grid;place-items:center;padding:24px">
-  <!-- Temporary landing page: replaced by the module chooser and app shell -->
-  <div style="background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);padding:32px;max-width:420px;width:100%">
-    <h1 style="font-size:22px;font-weight:600;letter-spacing:-.01em">You are signed in</h1>
-    <p id="who" style="margin-top:6px;color:var(--ink-2)"></p>
-    <button id="logout" class="gf-btn gf-btn-dark" style="margin-top:20px">Sign out</button>
+<body>
+  <!-- logo, reused by the sidebar and the top bar -->
+  <template id="logo-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V8"/><path d="M12 2c1.6 1.4 1.6 3.6 0 5-1.6-1.4-1.6-3.6 0-5z"/><path d="M12 11c-2.2 0-3.6-1.3-3.8-3.4 2.2-.1 3.7 1 3.8 3.4z"/><path d="M12 11c2.2 0 3.6-1.3 3.8-3.4-2.2-.1-3.7 1-3.8 3.4z"/><path d="M12 16c-2.2 0-3.6-1.3-3.8-3.4 2.2-.1 3.7 1 3.8 3.4z"/><path d="M12 16c2.2 0 3.6-1.3 3.8-3.4-2.2-.1-3.7 1-3.8 3.4z"/></svg></template>
+
+  <div class="app">
+    <div class="window is-home" id="window">
+      <div class="scrim" id="scrim"></div>
+      <aside class="sidebar" id="sidebar" aria-label="Main menu"></aside>
+
+      <div class="main">
+        <div id="offline" class="gf-note gf-note-red gf-hidden" role="alert">
+          <i class="bi bi-wifi-off" aria-hidden="true"></i>
+          <span>You are offline. M-Pesa payments cannot be confirmed until the connection is back.</span>
+        </div>
+
+        <header class="topbar">
+          <button class="icon-btn menu-btn" id="menu-btn" type="button" aria-label="Open menu"><i class="bi bi-list"></i></button>
+          <div class="gf-brand only-home">
+            <div class="gf-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V8"/><path d="M12 2c1.6 1.4 1.6 3.6 0 5-1.6-1.4-1.6-3.6 0-5z"/><path d="M12 11c-2.2 0-3.6-1.3-3.8-3.4 2.2-.1 3.7 1 3.8 3.4z"/><path d="M12 11c2.2 0 3.6-1.3 3.8-3.4-2.2-.1-3.7 1-3.8 3.4z"/><path d="M12 16c-2.2 0-3.6-1.3-3.8-3.4 2.2-.1 3.7 1 3.8 3.4z"/><path d="M12 16c2.2 0 3.6-1.3 3.8-3.4-2.2-.1-3.7 1-3.8 3.4z"/></svg></div>
+            <span class="gf-wordmark">GrainFlow</span>
+          </div>
+          <h1 class="page-title" id="page-title"></h1>
+
+          <div class="topbar-right">
+            <div id="page-actions"></div>
+            <div class="user-menu">
+              <button class="user-btn" id="user-btn" type="button" aria-haspopup="true" aria-expanded="false">
+                <span class="gf-avatar" id="user-avatar"></span>
+                <span class="name" id="user-name"></span>
+                <i class="bi bi-chevron-down" style="font-size:11px;color:var(--muted)"></i>
+              </button>
+              <div class="menu gf-hidden" id="user-dropdown" role="menu">
+                <div class="who"><strong id="menu-name"></strong><span id="menu-role"></span></div>
+                <button id="logout-btn" type="button" role="menuitem"><i class="bi bi-box-arrow-right"></i>Sign out</button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="view" id="view"></main>
+      </div>
+    </div>
   </div>
+
   <script src="/js/api.js"></script>
-  <script>
-    if (!Session.active) { Session.clear(); location.replace('/login.html'); }
-    const u = Session.user || {};
-    document.getElementById('who').textContent = u.full_name || u.name || u.username || '';
-    document.getElementById('logout').addEventListener('click', async () => {
-      try { await Api.post('/auth/logout'); } catch (e) { /* still sign out locally */ }
-      Session.clear(); location.replace('/login.html');
-    });
-  </script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/shell.js"></script>
+  <!-- screens: each one registers itself with GF.page(...) -->
+ <script src="/js/millJobs.js"></script>
+<script src="/js/pages/customer.js"></script>
+<script src="/js/pages/stock.js"></script>t>
 </body>
 </html>
