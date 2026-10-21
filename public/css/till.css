@@ -152,3 +152,29 @@
   height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 13px;
 }
 .neg-text { color: var(--red-ink); }
+
+/* ---------- purchases ---------- */
+.gf-modal.is-xl { width: min(820px, 100%); }
+.pl-lines { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.pl { display: grid; grid-template-columns: minmax(0, 1.6fr) 80px minmax(0, 1fr) 100px 90px 28px; align-items: center; gap: 6px; }
+.pl .gf-input { height: 38px; padding: 0 10px; font-size: 13.5px; }
+.pl select.gf-input { padding-right: 28px; background-position: right 10px center; }
+.pl-amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pl-total { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 14px; background: var(--surface); }
+@media (max-width: 640px) {
+  .pl { grid-template-columns: 1fr 1fr; }
+  .pl .pl-item { grid-column: 1 / -1; }
+  .pl .pl-amt { text-align: left; }
+}
+
+/* ---------- price list ---------- */
+.pchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pchip {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--r-pill);
+  background: var(--surface); border: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); white-space: nowrap;
+}
+.pchip b { color: var(--green-deep); font-weight: 600; }
+.pe-in { height: 38px; width: 100%; padding: 0 10px; font-size: 14px; }
+.pe-in.is-bad { border-color: var(--red-ink); }
+.pe-hint { min-height: 16px; margin-top: 3px; font-size: 12px; color: var(--muted); }
+.pe-hint.red { color: var(--red-ink); }
