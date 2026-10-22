@@ -2324,6 +2324,63 @@ UPDATE users u SET allowed_modules = ARRAY['MILL', 'CEREAL']::module_code[]
 
 -- 3) check:  SELECT u.username, r.code AS role, u.allowed_modules FROM users u JOIN roles r ON r.id = u.role_id ORDER BY r.code, u.username;
 
+-- =====================================================================
+-- 16. PERMISSION CODES USED BY THE APP  -- safe to run more than once
+-- The owner's access is built from the whole `permissions` table, so every code the routes and
+-- screens check must exist here, or the owner gets 403 on that feature in a fresh database.
+-- =====================================================================
+INSERT INTO permissions (code, description) VALUES
+  ('backups.view', 'View the backup history'),
+  ('catalogue.manage', 'Manage grains, grades, units and items'),
+  ('customers.create', 'Add customers'),
+  ('customers.opening_balance', 'Set a customer opening balance'),
+  ('customers.update', 'Edit customers'),
+  ('customers.view', 'View customers'),
+  ('daily_close.reopen', 'Reopen a closed day'),
+  ('daily_close.view', 'View daily closes'),
+  ('deliveries.view', 'View deliveries'),
+  ('expenses.create', 'Record expenses'),
+  ('expenses.view', 'View expenses'),
+  ('expenses.void', 'Void an expense'),
+  ('mill.cancel', 'Cancel a milling job'),
+  ('mill.collect', 'Hand over finished milling jobs'),
+  ('mill.create', 'Create milling jobs'),
+  ('mill.machines', 'Manage machines and power logs'),
+  ('mill.update', 'Update milling jobs'),
+  ('mill.view', 'View the job board and mill screens'),
+  ('mill.yield', 'Review yield alerts and standards'),
+  ('payments.view', 'View payments'),
+  ('prices.min_price', 'Set minimum prices'),
+  ('prices.update', 'Change price lists'),
+  ('purchases.post', 'Post purchases to stock'),
+  ('purchases.view', 'View purchases'),
+  ('rates.manage', 'Change milling rates'),
+  ('reports.profit', 'See profit, margin and stock value reports'),
+  ('roles.manage', 'Edit roles'),
+  ('roles.view', 'View roles'),
+  ('sales.view', 'View sales'),
+  ('settings.view', 'View business settings'),
+  ('stock.opening', 'Enter opening stock'),
+  ('stock.take', 'Count stock'),
+  ('stock.take_post', 'Post a stock take'),
+  ('stock.transfer', 'Move stock between mill and cereal'),
+  ('suppliers.create', 'Add suppliers'),
+  ('suppliers.opening_balance', 'Set a supplier opening balance'),
+  ('suppliers.update', 'Edit suppliers'),
+  ('suppliers.view', 'View suppliers'),
+  ('users.create', 'Add users'),
+  ('users.reset_password', 'Reset a user password'),
+  ('users.unlock', 'Unlock a user account'),
+  ('users.update', 'Edit users'),
+  ('users.view', 'View users')
+ON CONFLICT (code) DO NOTHING;
+
+-- keep the OWNER role's table rows complete too
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+ WHERE r.code = 'OWNER'
+   AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = r.id AND rp.permission_id = p.id);
+
 COMMIT;
 
 /* =====================================================================
