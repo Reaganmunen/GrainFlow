@@ -1,6 +1,7 @@
 const { pool, exec, withTransaction } = require('../config/db');
 const AppError = require('../utils/AppError');
 const { Where, updateRow, bool } = require('../utils/sql');
+const access = require('../config/access');
 
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
@@ -33,17 +34,8 @@ class User {
     return rows[0] || null;
   }
 
-  /** Array of permission codes, e.g. ['sales.create', 'stock.view'] */
-  static async permissions(userId, ctx) {
-    // the OWNER role can do everything, including sales in both modules, whatever the role_permissions table says
-    const owner = await exec(ctx).query(
-      `SELECT 1 FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = $1 AND upper(r.code) = 'OWNER'`, [userId]
-    );
-    if (owner.rows.length) {
-      const all = (await exec(ctx).query('SELECT code FROM permissions ORDER BY code')).rows.map((r) => r.code);
-      // the per-module sales checks are enforced in middlewares/saleModule.js, so make sure they are always present
-      return [...new Set([...all, 'sales.mill', 'sales.cereal'])].sort();
-    }
+  /** Raw role_permissions rows for a user (before the access policy is applied). */
+  static async _tablePermissions(userId, ctx) {
     const { rows } = await exec(ctx).query(
       `SELECT p.code FROM users u
          JOIN role_permissions rp ON rp.role_id = u.role_id
@@ -52,6 +44,31 @@ class User {
       [userId]
     );
     return rows.map((r) => r.code);
+  }
+
+  /**
+   * What this user may REALLY do: role policy (config/access.js) applied to the role and the modules on the user.
+   * Returns { owner, modules, pools, permissions }. Fails closed.
+   */
+  static async access(user, ctx) {
+    const isOwner = access.canon(user.role_code) === 'OWNER';
+    const [table, all] = await Promise.all([
+      User._tablePermissions(user.id, ctx),
+      isOwner ? exec(ctx).query('SELECT code FROM permissions ORDER BY code').then((r) => r.rows.map((x) => x.code)) : [],
+    ]);
+    return access.resolveAccess(user, table, all);
+  }
+
+  /** The user row with its effective modules and permissions filled in (what the login response and req.user carry). */
+  static async withAccess(user, ctx) {
+    const a = await User.access(user, ctx);
+    return { ...user, allowed_modules: a.modules, permissions: a.permissions, is_owner: a.owner };
+  }
+
+  /** Array of effective permission codes, e.g. ['sales.create', 'stock.view'] */
+  static async permissions(userId, ctx) {
+    const user = await User.findById(userId, ctx);
+    return user ? (await User.access(user, ctx)).permissions : [];
   }
 
   /** Verifies the password inside Postgres (pgcrypto), handles lockout, returns the user + permissions. */
@@ -83,9 +100,7 @@ class User {
       'UPDATE users SET failed_login_count = 0, locked_until = NULL, last_login_at = now() WHERE id = $1',
       [u.id]
     );
-    const user = await User.findById(u.id);
-    user.permissions = await User.permissions(u.id);
-    return user;
+    return User.withAccess(await User.findById(u.id));
   }
 
   static async create(d, ctx) {
@@ -93,7 +108,7 @@ class User {
       throw new AppError('username, full_name and role_id are required');
     }
     User.checkPassword(d.password);
-    const modules = Array.isArray(d.allowed_modules) && d.allowed_modules.length ? d.allowed_modules : ['MILL', 'CEREAL'];
+    const modules = await User._modulesFor(d.role_id, d.allowed_modules, ctx);
     return withTransaction(ctx, async (db) => {
       const { rows } = await db.query(
         `INSERT INTO users (username, full_name, email, phone, password_hash, role_id, allowed_modules, must_change_password)
@@ -108,7 +123,25 @@ class User {
     });
   }
 
+  /** Modules to store for a role. Refuses a combination the role is not allowed (e.g. a cereal cashier in the mill). */
+  static async _modulesFor(roleId, requested, ctx) {
+    const role = (await exec(ctx).query('SELECT code FROM roles WHERE id = $1', [roleId])).rows[0];
+    if (!role) throw new AppError('Role not found', 400);
+    const r = access.checkModules(role.code, requested);
+    if (r.error) throw new AppError(r.error, 400);
+    return r.modules;
+  }
+
   static async update(id, d, ctx) {
+    d = { ...d };
+    if (d.role_id !== undefined || d.allowed_modules !== undefined) {
+      const current = await User.findById(id, ctx);
+      if (!current) throw new AppError('User not found', 404);
+      const roleId = d.role_id !== undefined ? d.role_id : current.role_id;
+      // changing the role without saying which modules: start from the role's own modules, not the old ones
+      const asked = d.allowed_modules !== undefined ? d.allowed_modules : d.role_id !== undefined ? [] : current.allowed_modules;
+      d.allowed_modules = await User._modulesFor(roleId, asked, ctx);
+    }
     return withTransaction(ctx, async (db) => {
       await updateRow(db, 'users', id, d,
         ['full_name', 'email', 'phone', 'role_id', 'allowed_modules', 'is_active'],

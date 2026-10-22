@@ -10,17 +10,20 @@ const { Where, paged, bool } = require('../utils/sql');
 class Stock {
   /** Filters: pool, kind, search, low (true = only low stock), page, limit */
   static async balances(f = {}, ctx) {
-    const w = new Where().eq('pool', f.pool).eq('kind', f.kind).search(['item_name', 'sku', 'grain'], f.search);
+    const w = new Where().eq('pool', f.pool).inList('pool', f.scope_pools).eq('kind', f.kind).search(['item_name', 'sku', 'grain'], f.search);
     if (bool(f.low)) w.raw('is_low');
     return paged(exec(ctx), 'SELECT *', 'FROM v_stock_current', w, 'item_name, pool', { limit: 200, ...f });
   }
 
-  static async lowStock(ctx) {
-    return (await exec(ctx).query('SELECT * FROM v_low_stock')).rows;
+  /** f.scope_pools limits a non-owner to the pools of their own module(s). */
+  static async lowStock(f = {}, ctx) {
+    const w = new Where().inList('pool', f.scope_pools);
+    return (await exec(ctx).query(`SELECT * FROM v_low_stock ${w.clause}`, w.values)).rows;
   }
 
-  static async valueSummary(ctx) {
-    return (await exec(ctx).query('SELECT * FROM v_stock_value_summary ORDER BY pool')).rows;
+  static async valueSummary(f = {}, ctx) {
+    const w = new Where().inList('pool', f.scope_pools);
+    return (await exec(ctx).query(`SELECT * FROM v_stock_value_summary ${w.clause} ORDER BY pool`, w.values)).rows;
   }
 
   /** Kg on hand for one item in one pool (0 if none). */
@@ -34,6 +37,7 @@ class Stock {
     const w = new Where()
       .eq('m.item_id', f.item_id)
       .eq('m.pool', f.pool)
+      .inList('m.pool', f.scope_pools)
       .eq('m.movement_type', f.movement_type)
       .eq('m.customer_id', f.customer_id)
       .dateRange('fn_local_date(m.movement_date)', f.from, f.to);

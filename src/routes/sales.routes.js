@@ -4,6 +4,10 @@ const router = require('express').Router();
 const { sales, payments, receipts } = require('../controllers');
 const { permit, requireApproval, optionalApproval } = require('./guards');
 const { bodyModule, queryModule, saleModule } = require('../middlewares/saleModule');
+const { guardRecord } = require('../middlewares/moduleScope');
+
+// the line in the URL must belong to a sale in the user's business, not just the sale id next to it
+const ofLine = guardRecord('sale_lines', '(SELECT s.module FROM sales s WHERE s.id = t.sale_id)', 'lineId');
 
 const view = permit('sales.view', 'sales.create');
 const sell = permit('sales.create');
@@ -24,8 +28,8 @@ router.post('/:id/post', sell, ofSale, sales.post);
 router.post('/:id/void', view, ofSale, requireApproval('sales.void'), sales.void);
 
 router.post('/:id/lines', sell, ofSale, priceApproval, sales.addLine);
-router.put('/:id/lines/:lineId', sell, ofSale, priceApproval, sales.updateLine);
-router.delete('/:id/lines/:lineId', sell, ofSale, sales.removeLine);
+router.put('/:id/lines/:lineId', sell, ofSale, ofLine, priceApproval, sales.updateLine);
+router.delete('/:id/lines/:lineId', sell, ofSale, ofLine, sales.removeLine);
 
 // payments for a sale
 router.post('/:saleId/payments', permit('payments.create'), ofSaleId, payments.forSale);

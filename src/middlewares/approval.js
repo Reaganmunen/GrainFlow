@@ -11,6 +11,10 @@ async function resolveApprover(req, permission) {
   if (!approver.permissions.includes(permission)) {
     throw new AppError('That user is not allowed to approve this action', 403, { code: 'APPROVER_NOT_ALLOWED', permission });
   }
+  // a manager can only approve things in their own business (req.opModule is set by the sale / payment module guards)
+  if (req.opModule && !approver.is_owner && !approver.allowed_modules.includes(req.opModule)) {
+    throw new AppError('That user does not work in this module, so cannot approve it', 403, { code: 'APPROVER_NOT_ALLOWED', permission });
+  }
   return approver.id;
 }
 

@@ -67,6 +67,12 @@ class Where {
   eq(col, v) {
     return v === undefined || v === null || v === '' ? this : this.raw(`${col} = ?`, v);
   }
+  /** col is one of the listed values. A list that is undefined means "no restriction"; an empty list matches nothing. */
+  inList(col, list) {
+    if (list === undefined || list === null) return this;
+    const arr = (Array.isArray(list) ? list : [list]).map(String);
+    return arr.length ? this.raw(`${col}::text = ANY(?::text[])`, arr) : this.raw('false');
+  }
   search(cols, term) {
     if (term === undefined || term === null || !String(term).trim()) return this;
     const n = this.values.length + 1;

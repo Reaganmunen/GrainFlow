@@ -5,8 +5,8 @@ const controller = require('../utils/controller');
 module.exports = controller({
   // stock on hand
   async balances(req, res) { page(res, await Stock.balances(req.query)); },
-  async lowStock(req, res) { ok(res, await Stock.lowStock()); },
-  async valueSummary(req, res) { ok(res, await Stock.valueSummary()); },
+  async lowStock(req, res) { ok(res, await Stock.lowStock(req.query)); },
+  async valueSummary(req, res) { ok(res, await Stock.valueSummary(req.query)); },
   async movements(req, res) { page(res, await Stock.movements(req.query)); },
   async customerGrain(req, res) { ok(res, await Stock.customerGrainHeld(req.query)); },
   /** POST /stock/opening { item_id, pool, quantity_kg, cost_per_kg } */

@@ -7,6 +7,9 @@ class Price {
   /** Current prices. Filters: item_id, tier ('RETAIL'|'WHOLESALE'), search. */
   static async current(f = {}, ctx) {
     const w = new Where().eq('item_id', f.item_id).eq('tier', f.tier).search(['item_name'], f.search);
+    if (Array.isArray(f.scope_modules)) {
+      w.raw("item_id IN (SELECT id FROM items WHERE coalesce(owner_module::text, 'SHARED') = ANY(?::text[]))", [...f.scope_modules, 'SHARED']);
+    }
     return (await exec(ctx).query(`SELECT * FROM v_current_prices ${w.clause} ORDER BY item_name, tier, price_per_kg`, w.values)).rows;
   }
 
@@ -50,10 +53,12 @@ class Price {
     });
   }
 
-  static async minPrices(ctx) {
+  static async minPrices(f = {}, ctx) {
+    const w = new Where();
+    if (Array.isArray(f.scope_modules)) w.raw("coalesce(i.owner_module::text, 'SHARED') = ANY(?::text[])", [...f.scope_modules, 'SHARED']);
     return (await exec(ctx).query(
       `SELECT m.item_id, i.name AS item_name, m.min_price_per_kg, m.updated_at FROM item_min_prices m
-         JOIN items i ON i.id = m.item_id ORDER BY i.name`)).rows;
+         JOIN items i ON i.id = m.item_id ${w.clause} ORDER BY i.name`, w.values)).rows;
   }
 
   /** Note: raising a minimum does not change existing prices; check the price list afterwards. */

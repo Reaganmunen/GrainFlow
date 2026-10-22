@@ -10,9 +10,9 @@ module.exports = controller({
 
   async ledger(req, res) {
     const supplier = found(await Supplier.findById(req.params.id), 'Supplier');
-    ok(res, { supplier, amount_owed: supplier.amount_owed, entries: await Supplier.ledger(req.params.id, req.query) });
+    ok(res, { supplier, amount_owed: supplier.amount_owed, entries: await Supplier.ledger(req.params.id, { ...req.query, scope_pools: req.access.owner ? undefined : req.access.pools }) });
   },
-  async unpaidPurchases(req, res) { ok(res, await Supplier.unpaidPurchases(req.params.id)); },
+  async unpaidPurchases(req, res) { ok(res, await Supplier.unpaidPurchases(req.params.id, req.access.owner ? null : req.access.pools)); },
   async setOpeningBalance(req, res) { ok(res, await Supplier.setOpeningBalance(req.params.id, req.body.amount, req.body.as_of, req.ctx)); },
 
   // payments to suppliers

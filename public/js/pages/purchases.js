@@ -261,7 +261,8 @@
         if (!itm.length) { m.error('No items are set up yet. Add the grains in the catalogue first.'); m.el.querySelector('[data-loading]').remove(); return; }
 
         const canPost = GF.can('purchases.post');
-        const f = { pool: 'CEREAL_STOCK', lines: [{ item_id: '', unit_id: '', qty: '', cost: '', units: [] }], payMethod: 'CASH' };
+        const POOLS = [['CEREAL_STOCK', 'Cereal stock', 'CEREAL'], ['MILL_STOCK', 'Mill stock', 'MILL']].filter((p) => GF.inModule(p[2])); // only your own side
+        const f = { pool: (POOLS[0] || ['CEREAL_STOCK'])[0], lines: [{ item_id: '', unit_id: '', qty: '', cost: '', units: [] }], payMethod: 'CASH' };
         const body = m.el.querySelector('.gf-modal-body');
         body.querySelector('[data-loading]').remove();
         body.insertAdjacentHTML('beforeend', `
@@ -272,7 +273,7 @@
           </div>
           <div class="gf-row2">
             <div class="gf-field"><label class="gf-label">Goes into</label>
-              <div class="gf-seg" id="pf-pool"><button type="button" class="on" data-pool="CEREAL_STOCK">Cereal stock</button><button type="button" data-pool="MILL_STOCK">Mill stock</button></div></div>
+              <div class="gf-seg" id="pf-pool">${POOLS.map((p, i) => `<button type="button" class="${i === 0 ? 'on' : ''}" data-pool="${p[0]}">${p[1]}</button>`).join('')}</div></div>
             <div class="gf-field"><label class="gf-label" for="pf-ref">Supplier invoice no (optional)</label><input class="gf-input plain" id="pf-ref" autocomplete="off"></div>
           </div>
           <div class="form-section"><span class="gf-label">Items bought</span>

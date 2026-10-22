@@ -19,27 +19,28 @@ class Report {
   }
 
   /** Sales per day for the last N days. Filter: module */
-  static async salesTrend({ days = 14, module } = {}, ctx) {
+  static async salesTrend({ days = 14, module, scope_modules } = {}, ctx) {
     return (await exec(ctx).query(
       `SELECT day, sum(sales_count) AS sales_count, sum(sales_total) AS sales_total, sum(collected) AS collected
          FROM v_sales_daily WHERE day >= fn_local_date(now()) - $1::int AND ($2::module_code IS NULL OR module = $2::module_code)
-        GROUP BY day ORDER BY day`, [days, module || null])).rows;
+          AND ($3::text[] IS NULL OR module::text = ANY($3::text[]))
+        GROUP BY day ORDER BY day`, [days, module || null, scope_modules || null])).rows;
   }
 
   static async salesDaily(f = {}, ctx) {
-    const w = new Where().eq('module', f.module).dateRange('day', f.from, f.to);
+    const w = new Where().eq('module', f.module).inList('module', f.scope_modules).dateRange('day', f.from, f.to);
     return (await exec(ctx).query(`SELECT * FROM v_sales_daily ${w.clause} ORDER BY day DESC, module`, w.values)).rows;
   }
 
   /** Cash against M-Pesa per day and module. */
   static async paymentsDaily(f = {}, ctx) {
-    const w = new Where().eq('module', f.module).dateRange('day', f.from, f.to);
+    const w = new Where().eq('module', f.module).inList('module', f.scope_modules).dateRange('day', f.from, f.to);
     return (await exec(ctx).query(`SELECT * FROM v_payments_daily ${w.clause} ORDER BY day DESC, module`, w.values)).rows;
   }
 
   /** Revenue, cost of goods, expenses and profit per day/module, plus totals. */
   static async profit(f = {}, ctx) {
-    const w = new Where().eq('module', f.module).dateRange('day', f.from, f.to);
+    const w = new Where().eq('module', f.module).inList('module', f.scope_modules).dateRange('day', f.from, f.to);
     const db = exec(ctx);
     const rows = (await db.query(`SELECT * FROM v_profit_daily ${w.clause} ORDER BY day DESC, module`, w.values)).rows;
     const totals = (await db.query(

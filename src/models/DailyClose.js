@@ -5,7 +5,7 @@ const { Where, paged } = require('../utils/sql');
 /** End-of-day: expected cash and M-Pesa vs what was actually counted. module SHARED = whole business. */
 class DailyClose {
   static async list(f = {}, ctx) {
-    const w = new Where().eq('d.module', f.module).eq('d.status', f.status).dateRange('d.close_date', f.from, f.to);
+    const w = new Where().eq('d.module', f.module).inList('d.module', f.scope_modules).eq('d.status', f.status).dateRange('d.close_date', f.from, f.to);
     return paged(
       exec(ctx),
       'SELECT d.*, u.full_name AS closed_by_name',

@@ -16,6 +16,7 @@ class Purchase {
       .eq('p.status', f.status)
       .eq('p.payment_status', f.payment_status)
       .eq('p.stock_pool', f.stock_pool)
+      .inList('p.stock_pool', f.scope_pools)
       .dateRange('p.purchase_date', f.from, f.to)
       .search(['p.purchase_no', 's.name', 'p.supplier_invoice_ref'], f.search);
     return paged(

@@ -15,11 +15,14 @@ class Item {
       .eq('i.is_millable', bool(f.millable))
       .eq('i.is_active', bool(f.active))
       .search(['i.name', 'i.sku'], f.search);
+    const sees = (pool) => !Array.isArray(f.scope_pools) || f.scope_pools.includes(pool); // other business: shown as 0
+    const stockOf = (pool) => (sees(pool)
+      ? `coalesce((SELECT quantity_kg FROM stock_balances WHERE item_id = i.id AND pool = '${pool}'), 0)` : '0');
     return paged(
       exec(ctx),
       `SELECT i.*, g.name AS grain_name, gr.name AS grade_name,
-              coalesce((SELECT quantity_kg FROM stock_balances WHERE item_id = i.id AND pool = 'CEREAL_STOCK'), 0) AS cereal_stock_kg,
-              coalesce((SELECT quantity_kg FROM stock_balances WHERE item_id = i.id AND pool = 'MILL_STOCK'), 0) AS mill_stock_kg`,
+              ${stockOf('CEREAL_STOCK')} AS cereal_stock_kg,
+              ${stockOf('MILL_STOCK')} AS mill_stock_kg`,
       'FROM items i LEFT JOIN grains g ON g.id = i.grain_id LEFT JOIN grades gr ON gr.id = i.grade_id',
       w, 'i.name', f
     );

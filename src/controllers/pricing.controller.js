@@ -12,7 +12,7 @@ module.exports = controller({
   async setPrices(req, res) { ok(res, await Price.setMany(req.body.prices, req.ctx)); },
 
   // minimum prices
-  async minPrices(req, res) { ok(res, await Price.minPrices()); },
+  async minPrices(req, res) { ok(res, await Price.minPrices(req.query)); },
   async setMinPrice(req, res) { ok(res, await Price.setMinPrice(req.params.itemId, req.body.min_price_per_kg, req.ctx)); },
   async removeMinPrice(req, res) { ok(res, { removed: await Price.removeMinPrice(req.params.itemId, req.ctx) }); },
 

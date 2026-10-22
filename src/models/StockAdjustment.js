@@ -11,6 +11,7 @@ class StockAdjustment {
     const w = new Where()
       .eq('a.item_id', f.item_id)
       .eq('a.pool', f.pool)
+      .inList('a.pool', f.scope_pools)
       .eq('a.reason', f.reason)
       .dateRange('fn_local_date(a.adjustment_date)', f.from, f.to);
     return paged(
@@ -29,7 +30,7 @@ class StockAdjustment {
 
   /** Total losses by reason for a period (for the "losses and spoilage" report). */
   static async lossSummary(f = {}, ctx) {
-    const w = new Where().raw('a.quantity_kg_change < 0').eq('a.pool', f.pool).dateRange('fn_local_date(a.adjustment_date)', f.from, f.to);
+    const w = new Where().raw('a.quantity_kg_change < 0').eq('a.pool', f.pool).inList('a.pool', f.scope_pools).dateRange('fn_local_date(a.adjustment_date)', f.from, f.to);
     return (await exec(ctx).query(
       `SELECT a.reason, count(*) AS entries, sum(-a.quantity_kg_change) AS kg_lost, sum(-a.value_change) AS value_lost
          FROM stock_adjustments a ${w.clause} GROUP BY a.reason ORDER BY value_lost DESC`, w.values)).rows;

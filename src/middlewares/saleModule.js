@@ -20,6 +20,7 @@ const bodyModule = (req, res, next) => {
   const m = String((req.body && req.body.module) || '').toUpperCase();
   if (!MODULES.includes(m)) return next(new AppError('module must be MILL or CEREAL'));
   if (!req.can(permFor(m))) return next(deny(m));
+  req.opModule = m;
   next();
 };
 
@@ -44,6 +45,7 @@ const saleModule = (param = 'id') => async (req, res, next) => {
     if (sale && sale.module && !req.can(permFor(String(sale.module).toUpperCase()))) {
       return next(deny(String(sale.module).toUpperCase()));
     }
+    if (sale && sale.module) req.opModule = String(sale.module).toUpperCase();
     next(); // a missing sale is left for the controller to answer with 404
   } catch (err) {
     next(err);

@@ -13,6 +13,7 @@ class Delivery {
       .eq('d.status', f.status)
       .eq('d.customer_id', f.customer_id)
       .eq('d.sale_id', f.sale_id)
+      .inList('s.module', f.scope_modules)
       .dateRange('fn_local_date(d.created_at)', f.from, f.to)
       .search(['d.delivery_no', 's.sale_no', 'c.full_name', 'd.driver_name', 'd.vehicle_reg'], f.search);
     return paged(

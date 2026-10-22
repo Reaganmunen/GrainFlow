@@ -10,8 +10,10 @@
   const dateOnly = (v) => (v ? String(v).slice(0, 10) : '');
   const ymd = (d) => d.toLocaleDateString('en-CA');
   const METHODS = [['CASH', 'Cash'], ['MPESA_MANUAL', 'M-Pesa'], ['BANK', 'Bank'], ['OTHER', 'Other']];
-  const MODULES = [['SHARED', 'Whole business'], ['MILL', 'Posho mill'], ['CEREAL', 'Cereals']];
-  const modLabel = (m) => (MODULES.find((x) => x[0] === m) || [, m || '–'])[1];
+  const ALL_MODULES = [['SHARED', 'Whole business'], ['MILL', 'Posho mill'], ['CEREAL', 'Cereals']];
+  // whole-business costs are the owner's; a manager only records and sees their own business
+  const MODULES = ALL_MODULES.filter(([v]) => (v === 'SHARED' ? GF.isOwner : GF.inModule(v)));
+  const modLabel = (m) => (ALL_MODULES.find((x) => x[0] === m) || [, m || '–'])[1];
   const modPill = (m) => `<span class="pill ${m === 'MILL' ? 'amber' : m === 'CEREAL' ? 'green' : ''}">${esc(modLabel(m))}</span>`;
   const methodLabel = (m) => (METHODS.find((x) => x[0] === m) || [, m || '–'])[1];
 
@@ -88,7 +90,7 @@
         toolbarEl.innerHTML = `
           ${chip('period', 'today', 'Today')}${chip('period', 'week', 'Last 7 days')}${chip('period', 'month', 'This month')}${chip('period', 'all', 'All time')}
           <span class="sep"></span>
-          ${chip('module', '', 'All')}${chip('module', 'MILL', 'Mill')}${chip('module', 'CEREAL', 'Cereals')}${chip('module', 'SHARED', 'Shared')}
+          ${MODULES.length > 1 ? chip('module', '', 'All') + MODULES.map(([v]) => chip('module', v, v === 'MILL' ? 'Mill' : v === 'CEREAL' ? 'Cereals' : 'Shared')).join('') : ''}
           <span class="grow"></span>
           <select class="gf-input plain" id="cat-filter" style="height:32px;width:auto;font-size:13px" aria-label="Filter by category">
             <option value="">All categories</option>
@@ -190,7 +192,7 @@
       // ------------------------------------------------------------ add / edit
       async function openForm(id) {
         const editing = !!id;
-        let r = { expense_date: ymd(new Date()), module: 'SHARED', method: 'CASH' };
+        let r = { expense_date: ymd(new Date()), module: (MODULES[0] || ['SHARED'])[0], method: 'CASH' };
         const m = UI.modal({
           title: editing ? 'Edit expense' : 'Add expense', wide: true,
           body: '<div class="gf-hint" data-loading>Loading…</div>',

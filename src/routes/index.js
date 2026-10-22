@@ -4,6 +4,7 @@
  */
 const router = require('express').Router();
 const { authenticate } = require('./guards');
+const { requireAnyModule, requireModule } = require('../middlewares/moduleScope');
 
 // ---- public ----
 router.use('/auth', require('./auth.routes')); // login is public; the other auth routes authenticate themselves
@@ -11,6 +12,7 @@ router.use('/mpesa', require('./mpesa.routes'));
 
 // ---- everything below requires a logged-in user ----
 router.use(authenticate);
+router.use(requireAnyModule); // a user with no module assigned gets nothing (the owner is always in)
 
 // routers that declare their own full paths (mounted at the root)
 router.use(require('./users.routes'));      // /users, /roles
@@ -22,7 +24,7 @@ router.use(require('./pricing.routes'));    // /prices, /min-prices, /milling-ra
 router.use('/customers', require('./customers.routes'));
 router.use('/stock', require('./stock.routes'));
 router.use('/purchases', require('./purchases.routes'));
-router.use('/mill', require('./mill.routes'));
+router.use('/mill', requireModule('MILL'), require('./mill.routes')); // posho mill only
 router.use('/sales', require('./sales.routes'));
 router.use('/payments', require('./payments.routes'));
 router.use('/receipts', require('./receipts.routes'));

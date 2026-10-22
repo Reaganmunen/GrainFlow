@@ -12,10 +12,12 @@
   const user = Session.user || {};
   const userName = user.full_name || user.name || user.username || 'User';
   const roleName = user.role_name || user.role_code || '';
-  // UI only: the owner sees everything. The server still checks every permission.
-  const isOwner = String(user.role_code || '').toUpperCase() === 'OWNER';
+  // UI only: the server checks every permission and every module on every request, this just hides what you cannot use.
+  const isOwner = !!user.is_owner || String(user.role_code || '').toUpperCase() === 'OWNER';
+  const modules = isOwner ? ['MILL', 'CEREAL'] : (Array.isArray(user.allowed_modules) ? user.allowed_modules : []);
   const can = (p) => isOwner || Session.can(p);
   const canAny = (perm) => !perm || [].concat(perm).some(can);
+  const inModule = (m) => modules.includes(m);
 
   // ---------- navigation map ----------
   const item = (to, label, icon, perm) => ({ to, label, icon, perm });
@@ -37,6 +39,7 @@
 
   const SPACES = {
     mill: {
+      module: 'MILL',
       label: 'Posho mill', short: 'Mill', icon: 'bi-gear-wide-connected', dot: 'var(--mill)',
       blurb: 'Job tickets, flour and bran sales, and the yield check on every job.',
       start: '#/mill/jobs', access: ['mill.view', 'sales.create'],
@@ -56,6 +59,7 @@
       ],
     },
     cereal: {
+      module: 'CEREAL',
       label: 'Cereals', short: 'Cereals', icon: 'bi-basket', dot: 'var(--green)',
       blurb: 'Buying, stock, price lists and sales by the bag or by the kilo.',
       start: '#/cereal/till', access: ['sales.create', 'purchases.view'],
@@ -69,7 +73,7 @@
           item('cereal/stock', 'Stock', 'bi-boxes', 'stock.view'),
           item('cereal/purchases', 'Purchases', 'bi-cart-plus', 'purchases.view'),
           item('cereal/adjustments', 'Losses and stock takes', 'bi-clipboard-data', 'stock.view'),
-          item('shared/transfers', 'Mill transfers', 'bi-arrow-left-right', 'stock.view'),
+          item('shared/transfers', 'Mill transfers', 'bi-arrow-left-right', 'stock.transfer'),
         ]},
         { label: 'Prices and margin', items: [
           item('cereal/prices', 'Price list', 'bi-tags', 'purchases.view'),
@@ -80,6 +84,7 @@
       ],
     },
     owner: {
+      ownerOnly: true,
       label: 'Owner dashboard', short: 'Owner', icon: 'bi-graph-up-arrow', dot: 'var(--dark)',
       blurb: 'Sales, cash against M-Pesa, stock and credit for both modules.',
       start: '#/owner/dashboard', access: ['dashboard.view'],
@@ -98,7 +103,9 @@
     },
   };
 
-  const available = () => Object.keys(SPACES).filter((k) => canAny(SPACES[k].access));
+  // a space is open only to someone who works in that module (the owner works in both and also gets the owner dashboard)
+  const spaceOpen = (sp) => (sp.ownerOnly ? isOwner : inModule(sp.module)) && canAny(sp.access);
+  const available = () => Object.keys(SPACES).filter((k) => spaceOpen(SPACES[k]));
   const lastSpace = () => {
     const s = localStorage.getItem('gf_space');
     const list = available();
@@ -114,7 +121,7 @@
   window.GF = {
     page(path, def) { pages[path] = def; },
     setActions(html) { $('#page-actions').innerHTML = html || ''; },
-    can, user, get space() { return document.body.dataset.space; },
+    can, user, isOwner, modules, inModule, get space() { return document.body.dataset.space; },
   };
 
   // ---------- chrome ----------
@@ -247,6 +254,13 @@
 
   window.addEventListener('hashchange', route);
   renderUser();
+
+  // pick up a changed role / module (the server already applies it on every request): refresh the saved copy and reload once
+  Api.get('/auth/me', { handle401: true }).then((fresh) => {
+    if (!fresh) return;
+    const mine = (u) => JSON.stringify([u.role_code, u.is_owner, [...(u.allowed_modules || [])].sort(), [...(u.permissions || [])].sort()]);
+    if (mine(fresh) !== mine(user)) { localStorage.setItem('gf_user', JSON.stringify(fresh)); location.reload(); }
+  }).catch(() => { /* offline: keep what we have */ });
   // page scripts load after this file, so route once they have all registered
   if (document.readyState === 'complete') route(); else window.addEventListener('load', route);
 })();

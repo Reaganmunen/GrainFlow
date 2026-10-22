@@ -5,7 +5,7 @@ const { Where, insertRow, paged } = require('../utils/sql');
 /** Physical stock counts. Posting turns every variance into a COUNT_CORRECTION adjustment. */
 class StockTake {
   static async list(f = {}, ctx) {
-    const w = new Where().eq('t.pool', f.pool).eq('t.status', f.status).dateRange('t.take_date', f.from, f.to);
+    const w = new Where().eq('t.pool', f.pool).inList('t.pool', f.scope_pools).eq('t.status', f.status).dateRange('t.take_date', f.from, f.to);
     return paged(
       exec(ctx),
       `SELECT t.*, u.full_name AS created_by_name, (SELECT count(*) FROM stock_take_lines l WHERE l.take_id = t.id) AS line_count`,

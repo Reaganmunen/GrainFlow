@@ -11,6 +11,7 @@ class Expense {
   static async list(f = {}, ctx) {
     const w = new Where()
       .eq('e.module', f.module)
+      .inList('e.module', f.scope_modules)
       .eq('e.category_id', f.category_id)
       .eq('e.method', f.method)
       .eq('e.supplier_id', f.supplier_id)
@@ -62,7 +63,7 @@ class Expense {
 
   /** Totals by category (and module) for a period. Filters: module, from, to */
   static async summary(f = {}, ctx) {
-    const w = new Where().eq('module', f.module).dateRange('day', f.from, f.to);
+    const w = new Where().eq('module', f.module).inList('module', f.scope_modules).dateRange('day', f.from, f.to);
     return (await exec(ctx).query(
       `SELECT category, module, sum(total) AS total FROM v_expenses_daily ${w.clause}
         GROUP BY category, module ORDER BY total DESC`, w.values)).rows;

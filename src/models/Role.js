@@ -1,5 +1,6 @@
 const { exec, withTransaction } = require('../config/db');
 const AppError = require('../utils/AppError');
+const { isManagedRole } = require('../config/access');
 
 class Role {
   static async list(ctx) {
@@ -32,6 +33,9 @@ class Role {
       const role = (await db.query('SELECT code FROM roles WHERE id = $1', [roleId])).rows[0];
       if (!role) throw new AppError('Role not found', 404);
       if (role.code === 'OWNER') throw new AppError('The OWNER role always keeps every permission', 400);
+      if (isManagedRole(role.code)) {
+        throw new AppError('This role has fixed permissions set by the system (src/config/access.js), so they cannot be edited here', 400);
+      }
       await db.query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
       if (codes.length) {
         await db.query(

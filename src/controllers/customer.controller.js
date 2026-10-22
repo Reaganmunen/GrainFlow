@@ -18,9 +18,9 @@ module.exports = controller({
   /** Statement: { customer, balance, entries } with running balance. Query: from, to */
   async ledger(req, res) {
     const customer = found(await Customer.findById(req.params.id), 'Customer');
-    ok(res, { customer, balance: customer.balance, entries: await Customer.ledger(req.params.id, req.query) });
+    ok(res, { customer, balance: customer.balance, entries: await Customer.ledger(req.params.id, { ...req.query, scope_modules: req.access.owner ? undefined : req.access.modules }) });
   },
-  async openSales(req, res) { ok(res, await Customer.openSales(req.params.id)); },
+  async openSales(req, res) { ok(res, await Customer.openSales(req.params.id, req.access.owner ? null : req.access.modules)); },
   async grainHeld(req, res) { ok(res, await Customer.grainHeld(req.params.id)); },
   /** POST /customers/:id/opening-balance { amount, as_of? } */
   async setOpeningBalance(req, res) { ok(res, await Customer.setOpeningBalance(req.params.id, req.body.amount, req.body.as_of, req.ctx)); },

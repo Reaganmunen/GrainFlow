@@ -16,8 +16,10 @@
   const nice = (v) => { const d = dateOnly(v); return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '–'; };
   const stamp = (iso) => (iso ? new Date(iso).toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) : '');
 
-  const MODULES = [['SHARED', 'Whole business'], ['MILL', 'Posho mill'], ['CEREAL', 'Cereals']];
-  const modLabel = (m) => (MODULES.find((x) => x[0] === m) || [, m || '–'])[1];
+  const ALL_MODULES = [['SHARED', 'Whole business'], ['MILL', 'Posho mill'], ['CEREAL', 'Cereals']];
+  // only the owner can close the whole business; everyone else closes their own side
+  const MODULES = ALL_MODULES.filter(([v]) => (v === 'SHARED' ? GF.isOwner : GF.inModule(v)));
+  const modLabel = (m) => (ALL_MODULES.find((x) => x[0] === m) || [, m || '–'])[1];
   const modPill = (m) => `<span class="pill ${m === 'MILL' ? 'amber' : m === 'CEREAL' ? 'green' : ''}">${esc(modLabel(m))}</span>`;
 
   /** counted minus expected: 0 is balanced, below 0 is short, above 0 is over */
@@ -47,7 +49,7 @@
       const canView = GF.can('daily_close.view');
       const canReopen = GF.can('daily_close.reopen');
       const s = {
-        date: ymd(new Date()), module: 'SHARED', preview: null, pLoading: false, pFailed: '',
+        date: ymd(new Date()), module: (MODULES[0] || ['SHARED'])[0], preview: null, pLoading: false, pFailed: '',
         rows: [], total: 0, period: 'month', hModule: '', status: '', hLoading: true, hFailed: '',
       };
 
@@ -256,8 +258,7 @@
         toolbarEl.innerHTML =
           [['week', 'Last 7 days'], ['month', 'This month'], ['all', 'All time']].map(([v, l]) => chip('period', v, l, s.period === v)).join('') +
           '<span class="sep"></span>' +
-          [['', 'All businesses'], ...MODULES].map(([v, l]) => chip('hmodule', v, l, s.hModule === v)).join('') +
-          '<span class="sep"></span>' +
+          (MODULES.length > 1 ? [['', 'All businesses'], ...MODULES].map(([v, l]) => chip('hmodule', v, l, s.hModule === v)).join('') + '<span class="sep"></span>' : '') +
           [['', 'Any status'], ['CLOSED', 'Closed'], ['OPEN', 'Open']].map(([v, l]) => chip('status', v, l, s.status === v)).join('');
       }
 

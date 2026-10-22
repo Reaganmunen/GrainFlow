@@ -68,22 +68,29 @@ class Customer {
   /** Statement with running balance (positive = customer owes us). Filters: from, to (dates). */
   static async ledger(customerId, f = {}, ctx) {
     const w = new Where().dateRange('fn_local_date(x.entry_date)', f.from, f.to);
+    // a user limited to one business only sees (and runs the balance over) the entries of that business
+    const scoped = Array.isArray(f.scope_modules);
+    const n = w.values.length;
     const { rows } = await exec(ctx).query(
       `SELECT x.* FROM (
           SELECT l.id, l.entry_date, l.entry_type, l.debit, l.credit, l.description, l.sale_id, l.payment_id,
                  sum(l.debit - l.credit) OVER (ORDER BY l.entry_date, l.id) AS running_balance
-            FROM customer_ledger l WHERE l.customer_id = $${w.values.length + 1}
+            FROM customer_ledger l
+            ${scoped ? 'LEFT JOIN sales ls ON ls.id = l.sale_id LEFT JOIN payments lp ON lp.id = l.payment_id' : ''}
+           WHERE l.customer_id = $${n + 1}
+             ${scoped ? `AND coalesce(ls.module, lp.module)::text = ANY($${n + 2}::text[])` : ''}
        ) x ${w.clause} ORDER BY x.entry_date, x.id`,
-      [...w.values, customerId]
+      scoped ? [...w.values, customerId, f.scope_modules] : [...w.values, customerId]
     );
     return rows;
   }
 
   /** Customer's unpaid posted sales (for "pay off invoices" screens). */
-  static async openSales(customerId, ctx) {
+  static async openSales(customerId, scopeModules, ctx) {
     const { rows } = await exec(ctx).query(
       `SELECT id, sale_no, module, sale_date, due_date, total_amount, amount_paid, balance_due
-         FROM sales WHERE customer_id = $1 AND status = 'POSTED' AND balance_due > 0 ORDER BY sale_date, id`, [customerId]);
+         FROM sales WHERE customer_id = $1 AND status = 'POSTED' AND balance_due > 0
+          AND ($2::text[] IS NULL OR module::text = ANY($2::text[])) ORDER BY sale_date, id`, [customerId, scopeModules || null]);
     return rows;
   }
 

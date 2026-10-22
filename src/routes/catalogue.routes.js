@@ -3,6 +3,7 @@
 const router = require('express').Router();
 const { catalogue } = require('../controllers');
 const { permit } = require('./guards');
+const { scopeLists } = require('../middlewares/moduleScope');
 
 const manage = permit('catalogue.manage');
 
@@ -18,8 +19,8 @@ lookup('/units', catalogue.units);
 lookup('/price-tiers', catalogue.tiers);
 
 const items = catalogue.items;
-router.get('/items/pos', items.pos); // before /items/:id
-router.get('/items', items.list);
+router.get('/items/pos', scopeLists, items.pos); // before /items/:id
+router.get('/items', scopeLists, items.list);
 router.post('/items', manage, items.create);
 router.get('/items/:id', items.get);
 router.put('/items/:id', manage, items.update);

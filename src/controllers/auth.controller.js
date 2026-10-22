@@ -47,8 +47,7 @@ module.exports = controller({
     await User.changePassword(req.user.id, current_password, new_password, req.ctx);
     await Session.revokeAllForUser(req.user.id);
     const session = await openSession(req, req.user.id);
-    const user = await User.findById(req.user.id);
-    user.permissions = await User.permissions(req.user.id);
+    const user = await User.withAccess(await User.findById(req.user.id));
     ok(res, { ...session, user });
   },
 });

@@ -2,6 +2,7 @@ const AppError = require('../utils/AppError');
 const { verifyToken } = require('../utils/token');
 const { User, Session } = require('../models');
 const asyncHandler = require('./asyncHandler');
+const access = require('../config/access');
 
 function extractToken(req) {
   const [scheme, token] = (req.headers.authorization || '').split(' ');
@@ -14,6 +15,7 @@ function extractToken(req) {
  *
  * Sets:  req.user  (id, username, full_name, role_code, allowed_modules, permissions[], ...)
  *        req.can('sales.void', ...)  -> true only if the user has ALL the given permissions
+ *        req.access = { owner, modules[], pools[] }  -> which businesses / stock pools this user may touch
  *        req.ctx  = { userId, ip }   -> pass straight to the models
  *        req.token
  */
@@ -36,16 +38,19 @@ function build({ allowPasswordChange }) {
       throw new AppError('Your session has ended. Please log in again.', 401, { code: 'SESSION_ENDED' });
     }
 
-    const [user, permissions] = await Promise.all([User.findById(payload.sub), User.permissions(payload.sub)]);
-    if (!user || !user.is_active) throw new AppError('This account is disabled', 403, { code: 'ACCOUNT_DISABLED' });
+    const base = await User.findById(payload.sub);
+    if (!base || !base.is_active) throw new AppError('This account is disabled', 403, { code: 'ACCOUNT_DISABLED' });
+    const user = await User.withAccess(base); // role policy + modules applied: this is what the user may REALLY do
     if (user.must_change_password && !allowPasswordChange) {
       throw new AppError('You must change your password before continuing', 403, { code: 'PASSWORD_CHANGE_REQUIRED' });
     }
 
-    const perms = new Set(permissions);
+    const perms = new Set(user.permissions);
     req.token = token;
-    req.user = { ...user, permissions };
+    req.user = user; // allowed_modules + permissions are the EFFECTIVE ones
     req.can = (...codes) => codes.every((c) => perms.has(c));
+    // module scope for the rest of the request: owner = both businesses; everyone else only their own modules / stock pools
+    req.access = { owner: !!user.is_owner, modules: user.allowed_modules, pools: access.poolsOf(user.allowed_modules) };
     req.ctx = { userId: user.id, ip: req.ip };
     next();
   });

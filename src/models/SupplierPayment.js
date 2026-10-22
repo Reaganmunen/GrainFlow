@@ -12,6 +12,7 @@ class SupplierPayment {
       .eq('sp.purchase_id', f.purchase_id)
       .eq('sp.method', f.method)
       .eq('sp.module', f.module)
+      .inList('sp.module', f.scope_modules)
       .dateRange('fn_local_date(sp.paid_on)', f.from, f.to);
     return paged(
       exec(ctx),

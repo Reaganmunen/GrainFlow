@@ -42,23 +42,30 @@ class Supplier {
   /** Running balance of what we owe the supplier (positive = we owe them). */
   static async ledger(supplierId, f = {}, ctx) {
     const w = new Where().dateRange('fn_local_date(x.entry_date)', f.from, f.to);
+    // a user limited to one business only sees (and runs the balance over) the entries of that business
+    const scoped = Array.isArray(f.scope_pools);
+    const n = w.values.length;
     const { rows } = await exec(ctx).query(
       `SELECT x.* FROM (
           SELECT l.id, l.entry_date, l.entry_type, l.debit, l.credit, l.description, l.purchase_id, l.supplier_payment_id,
                  sum(l.credit - l.debit) OVER (ORDER BY l.entry_date, l.id) AS running_balance
-            FROM supplier_ledger l WHERE l.supplier_id = $${w.values.length + 1}
+            FROM supplier_ledger l
+            ${scoped ? 'LEFT JOIN purchases lpu ON lpu.id = l.purchase_id LEFT JOIN supplier_payments lsp ON lsp.id = l.supplier_payment_id' : ''}
+           WHERE l.supplier_id = $${n + 1}
+             ${scoped ? `AND coalesce(lpu.stock_pool::text, CASE lsp.module::text WHEN 'MILL' THEN 'MILL_STOCK' WHEN 'CEREAL' THEN 'CEREAL_STOCK' END) = ANY($${n + 2}::text[])` : ''}
        ) x ${w.clause} ORDER BY x.entry_date, x.id`,
-      [...w.values, supplierId]
+      scoped ? [...w.values, supplierId, f.scope_pools] : [...w.values, supplierId]
     );
     return rows;
   }
 
   /** Posted purchases not fully paid. */
-  static async unpaidPurchases(supplierId, ctx) {
+  static async unpaidPurchases(supplierId, scopePools, ctx) {
     return (await exec(ctx).query(
       `SELECT id, purchase_no, purchase_date, total_cost, amount_paid, balance_due
-         FROM purchases WHERE supplier_id = $1 AND status = 'POSTED' AND balance_due > 0 ORDER BY purchase_date, id`,
-      [supplierId])).rows;
+         FROM purchases WHERE supplier_id = $1 AND status = 'POSTED' AND balance_due > 0
+          AND ($2::text[] IS NULL OR stock_pool::text = ANY($2::text[])) ORDER BY purchase_date, id`,
+      [supplierId, scopePools || null])).rows;
   }
 
   /** Go-live data load: what we already owed the supplier. Can only be set once. */

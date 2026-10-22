@@ -17,6 +17,7 @@ class Payment {
       .eq('p.method', f.method)
       .eq('p.state', f.state)
       .eq('p.module', f.module)
+      .inList('p.module', f.scope_modules)
       .dateRange('fn_local_date(p.received_at)', f.from, f.to)
       .search(['p.payment_no', 'p.mpesa_receipt', 'p.payer_phone', 'c.full_name'], f.search);
     return paged(

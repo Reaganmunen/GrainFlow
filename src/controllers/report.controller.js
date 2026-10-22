@@ -5,7 +5,7 @@ const controller = require('../utils/controller');
 module.exports = controller({
   async dashboard(req, res) { ok(res, await Report.ownerDashboard()); },
   async alerts(req, res) { ok(res, await Report.ownerAlerts()); },
-  async salesTrend(req, res) { ok(res, await Report.salesTrend({ days: Number(req.query.days) || 14, module: req.query.module })); },
+  async salesTrend(req, res) { ok(res, await Report.salesTrend({ days: Number(req.query.days) || 14, module: req.query.module, scope_modules: req.query.scope_modules })); },
   async salesDaily(req, res) { ok(res, await Report.salesDaily(req.query)); },
   async paymentsDaily(req, res) { ok(res, await Report.paymentsDaily(req.query)); },
   async profit(req, res) { ok(res, await Report.profit(req.query)); },
