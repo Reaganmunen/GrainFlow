@@ -39,33 +39,25 @@ const PERMISSIONS = [
   'users.create', 'users.reset_password', 'users.unlock', 'users.update', 'users.view',
 ];
 
-const MANAGER_EXCLUDED = new Set([
-  'roles.manage', 'users.create', 'users.update', 'users.reset_password', 'settings.manage',
-]);
-
-const ROLES = [
-  { code: 'OWNER', name: 'Owner', perms: 'ALL' },
-  { code: 'MANAGER', name: 'Manager', perms: PERMISSIONS.filter((p) => !MANAGER_EXCLUDED.has(p)) },
-  {
-    code: 'CASHIER', name: 'Cashier',
-    perms: [
-      'sales.view', 'sales.create', 'payments.view', 'payments.create', 'payments.mpesa_manual',
-      'customers.view', 'customers.create', 'stock.view', 'mill.view',
-      'deliveries.view', 'daily_close.view', 'daily_close.perform',
-    ],
-  },
-  {
-    code: 'MILLER', name: 'Miller',
-    perms: ['mill.view', 'mill.create', 'mill.update', 'mill.collect', 'mill.yield', 'customers.view', 'customers.create', 'stock.view'],
-  },
-];
+// Roles, their modules and their permissions are defined ONCE, in src/config/access.js (the app uses that file,
+// not the role_permissions table, for these roles). This script just makes the rows exist and keeps them in sync.
+const access = require('../src/config/access');
+const ROLE_NAMES = {
+  OWNER: 'Owner', MILL_MANAGER: 'Mill manager', MILLER: 'Miller',
+  CEREAL_MANAGER: 'Cereal manager', CEREAL_CASHIER: 'Cereal cashier',
+};
+const ROLES = Object.keys(ROLE_NAMES).map((code) => ({
+  code, name: ROLE_NAMES[code], perms: code === 'OWNER' ? 'ALL' : access.ROLES[code].permissions,
+}));
 
 // ---------------------------------------------------------------- users
+// modules follow the role: owner = both, mill staff = MILL only, cereal staff = CEREAL only
 const USERS = [
-  { username: 'owner',   full_name: 'Fred (Owner)',   role: 'OWNER',   email: 'owner@grainflow.local',   phone: '0700000001', modules: ['MILL', 'CEREAL', 'SHARED'] },
-  { username: 'manager', full_name: 'Grace Manager',  role: 'MANAGER', email: 'manager@grainflow.local', phone: '0700000002', modules: ['MILL', 'CEREAL', 'SHARED'] },
-  { username: 'cashier', full_name: 'Joy Cashier',    role: 'CASHIER', email: 'cashier@grainflow.local', phone: '0700000003', modules: ['MILL', 'CEREAL', 'SHARED'] },
-  { username: 'miller',  full_name: 'Peter Miller',   role: 'MILLER',  email: 'miller@grainflow.local',  phone: '0700000004', modules: ['MILL'] },
+  { username: 'owner',         full_name: 'Fred (Owner)',     role: 'OWNER',          email: 'owner@grainflow.local',         phone: '0700000001', modules: ['MILL', 'CEREAL'] },
+  { username: 'millmanager',   full_name: 'Grace Mill Manager', role: 'MILL_MANAGER',   email: 'millmanager@grainflow.local',   phone: '0700000002', modules: ['MILL'] },
+  { username: 'miller',        full_name: 'Peter Miller',     role: 'MILLER',         email: 'miller@grainflow.local',        phone: '0700000004', modules: ['MILL'] },
+  { username: 'cerealmanager', full_name: 'Ann Cereal Manager', role: 'CEREAL_MANAGER', email: 'cerealmanager@grainflow.local', phone: '0700000005', modules: ['CEREAL'] },
+  { username: 'cashier',       full_name: 'Joy Cashier',      role: 'CEREAL_CASHIER', email: 'cashier@grainflow.local',       phone: '0700000003', modules: ['CEREAL'] },
 ];
 
 // ---------------------------------------------------------------- helpers
@@ -154,6 +146,14 @@ async function seedCore(db) {
     return msgs.join(' ');
   });
 
+  await step(db, 'old users on retired roles', async () => {
+    // a leftover 'manager' user (old MANAGER role) would still see both businesses: tell the owner instead of guessing
+    const { rows } = await db.query(
+      `SELECT u.username, r.code FROM users u JOIN roles r ON r.id = u.role_id
+        WHERE upper(r.code) = 'MANAGER' ORDER BY u.username`);
+    return rows.length ? `still on old MANAGER role: ${rows.map((r) => r.username).join(', ')} (move them to MILL_MANAGER or CEREAL_MANAGER)` : 'none';
+  });
+
   await step(db, 'users', async () => {
     const msgs = [];
     for (const u of USERS) {
@@ -161,14 +161,16 @@ async function seedCore(db) {
       if (!role) throw new Error(`role ${u.role} missing`);
       const existing = (await db.query('SELECT id FROM users WHERE lower(username) = lower($1)', [u.username])).rows[0];
       if (existing) {
+        // always move an existing seeded user onto the new role and its modules (e.g. the old cashier who could enter the mill)
+        await db.query('UPDATE users SET role_id = $2, allowed_modules = $3::module_code[] WHERE id = $1', [existing.id, role.id, u.modules]);
         if (RESET) {
           await db.query(
             `UPDATE users SET password_hash = crypt($2, gen_salt('bf', 10)), must_change_password = false,
-                    failed_login_count = 0, locked_until = NULL, is_active = true, role_id = $3
-              WHERE id = $1`, [existing.id, PASSWORD, role.id]);
+                    failed_login_count = 0, locked_until = NULL, is_active = true
+              WHERE id = $1`, [existing.id, PASSWORD]);
           msgs.push(`${u.username}:reset`);
         } else {
-          msgs.push(`${u.username}:exists`);
+          msgs.push(`${u.username}:updated`);
         }
         continue;
       }
