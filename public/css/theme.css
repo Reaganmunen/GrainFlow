@@ -137,5 +137,7 @@ button, input { font: inherit; color: inherit; }
   width: 30px; height: 30px; border-radius: 50%; flex: none;
   display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 600;
 }
+/* initials stay centred and white even inside a container that styles every <span> */
+.gf-avatar.gf-avatar { display: grid; place-items: center; color: #fff; font-weight: 600; line-height: 1; }
 
 .gf-hidden { display: none !important; }
