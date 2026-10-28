@@ -84,8 +84,8 @@ class Receipt {
 
   static async updateDelivery(id, { status, provider_message_id, error_text }, ctx) {
     const { rows } = await exec(ctx).query(
-      `UPDATE receipt_deliveries SET status = $2, provider_message_id = coalesce($3, provider_message_id), error_text = $4,
-              sent_at = CASE WHEN $2 IN ('SENT', 'DELIVERED') THEN coalesce(sent_at, now()) ELSE sent_at END
+      `UPDATE receipt_deliveries SET status = $2::message_status, provider_message_id = coalesce($3, provider_message_id), error_text = $4,
+              sent_at = CASE WHEN $2::message_status IN ('SENT', 'DELIVERED') THEN coalesce(sent_at, now()) ELSE sent_at END
         WHERE id = $1 RETURNING *`,
       [id, status, provider_message_id || null, error_text || null]);
     if (!rows[0]) throw new AppError('Delivery record not found', 404);
