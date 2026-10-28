@@ -2,12 +2,15 @@ const { exec, withTransaction } = require('../config/db');
 const AppError = require('../utils/AppError');
 const { Where, insertRow, updateRow, paged, bool } = require('../utils/sql');
 
-const HEADER_COLS = ['module', 'channel', 'customer_id', 'walkin_name', 'walkin_phone', 'sale_date', 'discount_amount',
-  'is_delivery', 'delivery_address', 'due_date', 'notes', 'cashier_id'];
+// sale_date and cashier_id are NOT client-writable: the DB stamps the date and createDraft sets the cashier from the login
+const HEADER_COLS = ['module', 'channel', 'customer_id', 'walkin_name', 'walkin_phone', 'discount_amount',
+  'is_delivery', 'delivery_address', 'due_date', 'notes'];
 const DRAFT_EDIT_COLS = ['channel', 'customer_id', 'walkin_name', 'walkin_phone', 'discount_amount', 'is_delivery',
   'delivery_address', 'due_date', 'notes'];
 const LINE_COLS = ['sale_id', 'line_type', 'item_id', 'mill_job_id', 'description', 'unit_id', 'quantity', 'unit_price',
   'stock_pool', 'price_override_by', 'override_reason'];
+
+const { POOL_MODULE } = require('../config/access');
 
 const blank = (v) => v === undefined || v === null || v === '';
 
@@ -66,7 +69,10 @@ class Sale {
 
   static async _prepareLine(db, sale, line) {
     const l = { line_type: 'ITEM', ...line };
+    // a sale may only carry lines of its own shop (a cereal sale can never bill a mill job or take mill stock)
+    if (l.line_type !== 'MILLING' && l.line_type !== 'ITEM') throw new AppError('line_type must be ITEM or MILLING');
     if (l.line_type === 'MILLING') {
+      if (sale.module !== 'MILL') throw new AppError('Milling can only be billed on a posho mill sale', 403, { code: 'FORBIDDEN' });
       const job = (await db.query('SELECT ticket_no, status, sale_id, charge_amount FROM mill_jobs WHERE id = $1', [l.mill_job_id])).rows[0];
       if (!job) throw new AppError('Milling job not found', 404);
       if (job.sale_id) throw new AppError(`Job ${job.ticket_no} is already billed`, 409);
@@ -78,6 +84,14 @@ class Sale {
       l.unit_id = undefined;
     } else {
       if (!l.item_id || !l.unit_id) throw new AppError('Each item line needs item_id and unit_id');
+      const it = (await db.query('SELECT owner_module::text AS m FROM items WHERE id = $1', [l.item_id])).rows[0];
+      if (!it) throw new AppError('Item not found', 404);
+      if (it.m && it.m !== 'SHARED' && it.m !== sale.module) {
+        throw new AppError('That item belongs to the other shop and cannot be sold here', 403, { code: 'FORBIDDEN' });
+      }
+      if (!blank(l.stock_pool) && POOL_MODULE[String(l.stock_pool).toUpperCase()] !== sale.module) {
+        throw new AppError('That stock belongs to the other shop', 403, { code: 'FORBIDDEN' });
+      }
       if (blank(l.unit_price)) {
         const tier = sale.channel === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL';
         const p = (await db.query(
@@ -101,7 +115,7 @@ class Sale {
     const lines = d.lines || [];
     const channel = d.channel || (d.module === 'MILL' && lines.some((l) => l.line_type === 'MILLING') ? 'MILLING' : 'RETAIL');
     return withTransaction(ctx, async (db) => {
-      const sale = await insertRow(db, 'sales', { ...d, channel, cashier_id: d.cashier_id || ctx?.userId }, HEADER_COLS);
+      const sale = await insertRow(db, 'sales', { ...d, channel, cashier_id: ctx?.userId }, [...HEADER_COLS, 'cashier_id']);
       for (const line of lines) await Sale._addLine(db, sale, line);
       return Sale.findById(sale.id, { client: db });
     });

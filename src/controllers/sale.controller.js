@@ -10,6 +10,9 @@ const guardDiscount = (req) => {
   }
 };
 
+/** Approval is decided by the server only: anything the client sends in price_override_by is discarded. */
+const stripOverride = (lines) => { for (const l of lines || []) if (l && typeof l === 'object') delete l.price_override_by; };
+
 /** If a manager approved (req.approverId, from optionalApproval('price.override')), mark the item lines as overridden. */
 const applyOverride = (req, lines) => {
   if (!req.approverId) return;
@@ -29,6 +32,7 @@ module.exports = controller({
    */
   async create(req, res) {
     guardDiscount(req);
+    stripOverride(req.body.lines);
     applyOverride(req, req.body.lines);
     const sale = req.body.post
       ? await Sale.createAndPost({ ...req.body, on_credit: !!req.body.on_credit }, req.ctx)
@@ -37,8 +41,9 @@ module.exports = controller({
   },
 
   async updateDraft(req, res) { guardDiscount(req); ok(res, await Sale.updateDraft(req.params.id, req.body, req.ctx)); },
-  async addLine(req, res) { applyOverride(req, [req.body]); created(res, await Sale.addLine(req.params.id, req.body, req.ctx)); },
+  async addLine(req, res) { stripOverride([req.body]); applyOverride(req, [req.body]); created(res, await Sale.addLine(req.params.id, req.body, req.ctx)); },
   async updateLine(req, res) {
+    delete req.body.price_override_by;
     if (req.approverId && req.body.unit_price !== undefined) req.body.price_override_by = req.approverId;
     ok(res, await Sale.updateLine(req.params.lineId, req.body, req.ctx));
   },

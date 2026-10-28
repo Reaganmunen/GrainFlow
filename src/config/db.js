@@ -8,9 +8,12 @@ types.setTypeParser(1082, (v) => v);
 
 const ssl = process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false;
 
+// Neon scales to zero when idle, so the first connection after a quiet spell can be slow: allow time, and drop idle clients early.
+const POOL_OPTS = { max: 10, connectionTimeoutMillis: 15000, idleTimeoutMillis: 30000, keepAlive: true };
+
 const pool = new Pool(
   process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL, ssl, max: 10 }
+    ? { connectionString: process.env.DATABASE_URL, ssl, ...POOL_OPTS }
     : {
         host: process.env.DB_HOST || 'localhost',
         port: Number(process.env.DB_PORT) || 5432,
@@ -18,11 +21,13 @@ const pool = new Pool(
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME || 'posho_cereals',
         ssl,
-        max: 10,
+        ...POOL_OPTS,
       }
 );
 
-// Every connection works inside the pmc schema and on Nairobi time
+// Every connection works inside the pmc schema and on Nairobi time.
+// On Neon's POOLED endpoint (host contains "-pooler") session SETs may not stick: use the direct host, or also run
+//   ALTER ROLE <role> SET search_path TO pmc, public;  ALTER ROLE <role> SET timezone TO 'Africa/Nairobi';
 pool.on('connect', (client) => {
   client
     .query("SET search_path TO pmc, public; SET TIME ZONE 'Africa/Nairobi';")
