@@ -31,6 +31,9 @@
     item('shared/expenses', 'Expenses', 'bi-cash-stack', 'expenses.view'),
     item('shared/daily-close', 'Daily close', 'bi-journal-check', 'daily_close.view'),
   ]};
+  const SHARED_CATALOGUE = { label: 'Catalogue', items: [
+    item('shared/catalogue', 'Catalogue', 'bi-grid', ['catalogue.manage', 'sales.create', 'stock.view']),
+  ]};
   const ADMIN = { label: 'Admin', items: [
     item('shared/users', 'Users and roles', 'bi-shield-check', 'users.view'),
     item('shared/activity', 'Activity log', 'bi-clock-history', 'activity.view'),
@@ -54,9 +57,8 @@
           item('mill/machines', 'Machines and power', 'bi-lightning-charge', 'mill.view'),
           item('mill/rates', 'Milling rates', 'bi-tag', 'mill.view'),
           item('mill/stock', 'Mill stock', 'bi-boxes', 'stock.view'),
-          item('mill/catalogue', 'Products', 'bi-box-seam', ['catalogue.items', 'catalogue.manage']),
         ]},
-        SHARED_PEOPLE, SHARED_MONEY, ADMIN,
+        SHARED_CATALOGUE, SHARED_PEOPLE, SHARED_MONEY, ADMIN,
       ],
     },
     cereal: {
@@ -72,7 +74,6 @@
         ]},
         { label: 'Stock and buying', items: [
           item('cereal/stock', 'Stock', 'bi-boxes', 'stock.view'),
-          item('cereal/catalogue', 'Products', 'bi-box-seam', ['catalogue.items', 'catalogue.manage']),
           item('cereal/purchases', 'Purchases', 'bi-cart-plus', 'purchases.view'),
           item('cereal/adjustments', 'Losses and stock takes', 'bi-clipboard-data', 'stock.view'),
           item('shared/transfers', 'Mill transfers', 'bi-arrow-left-right', 'stock.transfer'),
@@ -82,7 +83,7 @@
           item('cereal/min-prices', 'Minimum prices', 'bi-shield-lock', 'prices.min_price'),
           item('cereal/margin', 'Margin per grain', 'bi-percent', 'reports.profit'),
         ]},
-        SHARED_PEOPLE, SHARED_MONEY, ADMIN,
+        SHARED_CATALOGUE, SHARED_PEOPLE, SHARED_MONEY, ADMIN,
       ],
     },
     owner: {
@@ -100,7 +101,7 @@
           item('owner/supplier-balances', 'Supplier balances', 'bi-person-lines-fill', 'reports.view'),
           item('owner/stock-value', 'Stock value', 'bi-boxes', 'reports.profit'),
         ]},
-        ADMIN,
+        SHARED_CATALOGUE, ADMIN,
       ],
     },
   };
@@ -243,16 +244,16 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeMenu(); win.classList.remove('drawer-open'); } });
 
   $('#logout-btn').addEventListener('click', async () => {
+    const waiting = Offline.pendingCount();
+    if (waiting && !confirm(`${waiting} sale${waiting === 1 ? '' : 's'} / job ticket${waiting === 1 ? '' : 's'} saved on this computer ${waiting === 1 ? 'has' : 'have'} not been sent yet.\n\nThey are safe and will be sent the next time you sign in with the connection on. Sign out now?`)) return;
     try { await Api.post('/auth/logout'); } catch (e) { /* sign out locally anyway */ }
+    await Offline.onLogout();
     Session.clear();
     location.replace('/login.html');
   });
 
-  const offline = $('#offline');
-  const syncOnline = () => offline.classList.toggle('gf-hidden', navigator.onLine);
-  window.addEventListener('online', syncOnline);
-  window.addEventListener('offline', syncOnline);
-  syncOnline();
+  // offline mode: connection checks, the saved copy of prices/customers/jobs, and sending what was saved while offline
+  Offline.init();
 
   window.addEventListener('hashchange', route);
   renderUser();

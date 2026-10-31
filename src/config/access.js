@@ -41,7 +41,6 @@ const MANAGEMENT = [
   'daily_close.view', 'daily_close.perform',
   'reports.view', 'reports.profit',
   'deliveries.view', 'deliveries.manage',
-  'catalogue.items', // add / edit products and their units, in their own business only (routes/catalogue.routes.js)
 ];
 
 const MILLER_PERMS = [...COUNTER, 'mill.view', 'mill.create', 'mill.update', 'mill.collect'];

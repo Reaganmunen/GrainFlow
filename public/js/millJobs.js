@@ -11,6 +11,11 @@
   const REFRESH_MS = 30000;
 
   const todayStr = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in the browser's time zone
+  // a ticket made while offline has an id like "tmp:..." until the server has it
+  const jobId = (v) => (/^\d+$/.test(String(v)) ? Number(v) : v);
+  /** Saves a job step. With no connection it is kept on this computer and sent later (see js/offline.js). */
+  const step = (type, payload, label, extra) => Offline.submit(type, payload, { meta: { label }, ...(extra || {}) });
+  const saved = (r) => (r.status === 'queued' ? ' (saved on this computer)' : '');
   const num = (v) => Number(v || 0);
   const fmtKg = (n) => `${num(n).toLocaleString('en-KE', { maximumFractionDigits: 1 })} kg`;
 
@@ -253,12 +258,12 @@
       boardEl.addEventListener('click', (e) => {
         const t = e.target.closest('[data-act]');
         if (!t) return;
-        const id = Number(t.dataset.id);
+        const id = jobId(t.dataset.id);
         const job = [...s.open, ...s.done].find((j) => j.id === id);
         switch (t.dataset.act) {
           case 'new': openNewJob(); break;
           case 'view': openDetails(id); break;
-          case 'start': startJob(t, id); break;
+          case 'start': startJob(t, job); break;
           case 'complete': openComplete(job); break;
           case 'collect': collectJob(t, job); break;
           case 'cancel': openCancel(job); break;
@@ -266,15 +271,15 @@
         }
       });
       boardEl.addEventListener('keydown', (e) => {
-        if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.job-top')) { e.preventDefault(); openDetails(Number(e.target.dataset.id)); }
+        if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.job-top')) { e.preventDefault(); openDetails(jobId(e.target.dataset.id)); }
       });
 
       // ---------------------------------------------------------- actions
-      async function startJob(btn, id) {
+      async function startJob(btn, job) {
         btn.disabled = true;
         try {
-          await Api.post(`/mill/jobs/${id}/start`, {});
-          UI.toast('Milling started');
+          const r = await step('mill.start', { job_id: job.id }, `Start milling · ${job.ticket_no}`);
+          UI.toast(`Milling started${saved(r)}`);
           await load(true);
         } catch (err) { UI.toast(err.message, 'error'); btn.disabled = false; }
       }
@@ -283,9 +288,9 @@
         const go = async (trigger, m) => {
           if (m) m.busy(trigger, true); else btn.disabled = true;
           try {
-            await Api.post(`/mill/jobs/${job.id}/collect`, {});
+            const r = await step('mill.collect', { job_id: job.id }, `Hand over · ${job.ticket_no}`);
             if (m) m.close();
-            UI.toast(`${job.ticket_no} handed over`);
+            UI.toast(`${job.ticket_no} handed over${saved(r)}`);
             await load(true);
           } catch (err) {
             if (m) { m.busy(trigger, false); m.error(err.message); } else { UI.toast(err.message, 'error'); btn.disabled = false; }
@@ -313,8 +318,8 @@
           if (!reason) { m.error('Enter a reason for cancelling.'); return; }
           m.error(''); m.busy(e.currentTarget, true);
           try {
-            await Api.post(`/mill/jobs/${job.id}/cancel`, { reason });
-            m.close(); UI.toast(`${job.ticket_no} cancelled`); await load(true);
+            const r = await step('mill.cancel', { job_id: job.id, reason }, `Cancel ticket · ${job.ticket_no}`);
+            m.close(); UI.toast(`${job.ticket_no} cancelled${saved(r)}`); await load(true);
           } catch (err) { m.busy(e.currentTarget, false); m.error(err.message); }
         });
       }
@@ -348,8 +353,8 @@
           if (customerJob && m.el.querySelector('#w-takebran').checked) body.bran_destination = 'RETURNED_TO_CUSTOMER';
           m.error(''); m.busy(e.currentTarget, true);
           try {
-            await Api.post(`/mill/jobs/${job.id}/complete`, body);
-            m.close(); UI.toast(`${job.ticket_no} is ready`); await load(true);
+            const r = await step('mill.complete', { job_id: job.id, ...body }, `Weigh out · ${job.ticket_no}`);
+            m.close(); UI.toast(`${job.ticket_no} is ready${saved(r)}`); await load(true);
           } catch (err) { m.busy(e.currentTarget, false); m.error(err.message); }
         });
       }
@@ -378,6 +383,20 @@
         } catch (err) { m.error(err.message); }
       }
 
+      /** A ticket made offline has no server number yet: this one is what the customer takes away. */
+      function showSavedTicket(localNo, who, weight, needsLogin) {
+        UI.modal({
+          title: 'Ticket saved on this computer',
+          body: `<div class="gf-note gf-note-amber"><i class="bi bi-wifi-off"></i><span>${needsLogin
+            ? 'Your sign-in has expired. The ticket is safe here; sign in again and it will be sent.'
+            : 'There is no connection. The ticket is saved here and is sent to the server by itself when the connection is back.'}</span></div>
+            <p style="margin:14px 0 4px">Give the customer this ticket number:</p>
+            <div style="font-size:26px;font-weight:700;letter-spacing:.5px">${esc(localNo)}</div>
+            <div class="gf-hint">${esc(who)} · ${fmtKg(weight)}. The final ticket number appears on the job board once it is sent.</div>`,
+          foot: '<button class="gf-btn gf-btn-green" data-close type="button">Done</button>',
+        });
+      }
+
       // ---------------------------------------------------------- new job ticket
       async function openNewJob() {
         const m = UI.modal({
@@ -392,7 +411,7 @@
             Api.get('/mill/machines?active=true').catch(() => []),
           ]);
         } catch (err) { m.error(err.message); return; }
-        if (!grains.length) { m.error('No millable grains are set up yet. Add one under Products in the menu first (tick “Can be milled”).'); return; }
+        if (!grains.length) { m.error('No millable grains are set up yet. Add one in the catalogue first.'); return; }
 
         const f = { type: 'CUSTOMER', who: 'registered', customer: null, rate: null };
         const body = m.el.querySelector('.gf-modal-body');
@@ -531,8 +550,29 @@
 
           m.error(''); m.busy(submit, true);
           try {
-            const job = await Api.post('/mill/jobs', payload);
-            m.close(); UI.toast(`Ticket ${job.ticket_no} created`); await load(true);
+            // what the board shows for the ticket until the server has it
+            const who = f.type === 'OWN' ? 'Mill stock' : (payload.walkin_name || (f.customer && (f.customer.full_name || f.customer.name || f.customer.business_name)) || 'Customer');
+            const base = f.rate ? (f.rate.rate_basis === 'PER_TIN' ? num(payload.tins_in) : weight) * num(f.rate.rate) : 0;
+            const localNo = await Offline.nextLocalNo();
+            const ref = `tmp:${(crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2))}`;
+            const r = await step('mill.create', payload, `New job ticket · ${who} · ${weight} kg`, {
+              ref, local_no: localNo,
+              meta: {
+                label: `New job ticket · ${who} · ${weight} kg`,
+                job: {
+                  job_type: f.type, ticket_no: localNo, received_at: new Date().toISOString(), weight_in_kg: weight, weight_out_kg: null,
+                  bran_kg: null, yield_pct: null, yield_status: null, sale_id: null, customer_id: payload.customer_id || null,
+                  customer_name: who === 'Mill stock' ? null : who, grain_name: grainSel.options[grainSel.selectedIndex].text,
+                  grain_item_id: payload.grain_item_id, miller_name: GF.user.full_name || GF.user.name || '',
+                  charge_amount: f.type === 'OWN' ? 0 : base + num(payload.extra_charge), walkin_phone: payload.walkin_phone || null,
+                  special_request: payload.special_request || null,
+                },
+              },
+            });
+            m.close();
+            if (r.status === 'applied') UI.toast(`Ticket ${r.result.ticket_no} created`);
+            else showSavedTicket(localNo, who, weight, r.reason === 'AUTH');
+            await load(true);
           } catch (err) { m.busy(submit, false); m.error(err.message); }
         });
       }

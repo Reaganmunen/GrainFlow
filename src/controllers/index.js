@@ -16,4 +16,5 @@ module.exports = {
   expenses: require('./expense.controller'),
   dailyClose: require('./dailyClose.controller'),
   reports: require('./report.controller'),
+  offline: require('./offline.controller'),
 };

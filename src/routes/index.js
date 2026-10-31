@@ -32,5 +32,6 @@ router.use('/deliveries', require('./deliveries.routes'));
 router.use('/expenses', require('./expenses.routes'));
 router.use('/daily-close', require('./dailyClose.routes'));
 router.use('/reports', require('./reports.routes'));
+router.use('/offline', require('./offline.routes')); // till data pack + saving what was done without internet
 
 module.exports = router;

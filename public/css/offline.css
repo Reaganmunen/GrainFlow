@@ -1,0 +1,37 @@
+/* Offline mode: the status button in the top bar and the "Offline and sending" window. */
+
+.sync-pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--line); background: var(--card); color: var(--ink-2); font: inherit; font-size: 12.5px; font-weight: 500;
+  cursor: pointer; white-space: nowrap;
+}
+.sync-pill:hover { background: var(--chip); }
+.sync-pill i { font-size: 14px; }
+.sync-pill.is-online i { color: var(--green-deep); }
+.sync-pill.is-offline { background: var(--red-soft); border-color: transparent; color: var(--red-ink); }
+.sync-pill.is-waiting, .sync-pill.is-syncing { background: var(--mill-soft); border-color: transparent; color: var(--mill-ink); }
+.sync-pill.is-attention { background: var(--red-soft); border-color: transparent; color: var(--red-ink); }
+.sync-pill.is-syncing i { animation: sync-spin 1s linear infinite; }
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+@media (max-width: 720px) {
+  .sync-pill span { display: none; }
+  .sync-pill.is-offline span, .sync-pill.is-waiting span, .sync-pill.is-attention span { display: inline; }
+}
+
+.gf-note-green { background: var(--green-soft); color: var(--green-deep); }
+
+/* the window that lists what is saved on this computer */
+.oc-h { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px; font-size: 13px; font-weight: 600; }
+.oc-empty { padding: 10px 2px; color: var(--muted); font-size: 13px; }
+.so { display: flex; gap: 12px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--card); }
+.so.is-failed, .so.is-blocked { border-color: var(--red-soft); background: #fffafa; }
+.so-ico { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; background: var(--chip); color: var(--ink-2); }
+.so-main { min-width: 0; flex: 1; }
+.so-top { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.so-arrow { color: var(--muted); }
+.so-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.so-err { display: flex; gap: 6px; margin-top: 6px; color: var(--red-ink); font-size: 13px; }
+.so-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* till: shown while prices and stock come from the copy on this computer */
+.till-offline-note { margin-bottom: 12px; }

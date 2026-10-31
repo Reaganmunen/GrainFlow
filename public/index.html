@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/css/mill.css">
   <link rel="stylesheet" href="/css/till.css">
   <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/offline.css">
 </head>
 <body>
   <!-- logo, reused by the sidebar and the top bar -->
@@ -28,7 +29,7 @@
       <div class="main">
         <div id="offline" class="gf-note gf-note-red gf-hidden" role="alert">
           <i class="bi bi-wifi-off" aria-hidden="true"></i>
-          <span>You are offline. M-Pesa payments cannot be confirmed until the connection is back.</span>
+          <span>You are offline. Sales and job tickets are saved on this computer and sent when the connection is back.</span>
         </div>
 
         <header class="topbar">
@@ -40,6 +41,7 @@
           <h1 class="page-title" id="page-title"></h1>
 
           <div class="topbar-right">
+            <button class="sync-pill is-online" id="sync-pill" type="button" aria-label="Offline and sending status"><i class="bi bi-wifi" aria-hidden="true"></i><span>Online</span></button>
             <div id="page-actions"></div>
             <div class="user-menu">
               <button class="user-btn" id="user-btn" type="button" aria-haspopup="true" aria-expanded="false">
@@ -61,11 +63,13 @@
   </div>
 
   <script src="/js/api.js"></script>
+  <script src="/js/offline.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/shell.js"></script>
   <!-- screens: each one registers itself with GF.page(...) -->
  <script src="/js/millJobs.js"></script>
 <script src="/js/pages/customer.js"></script>
+<script src="/js/pages/catalogue.js"></script>
 <script src="/js/pages/stock.js"></script>
 <script src="/js/pages/till.js"></script>
 <script src="/js/pages/sales.js"></script>
@@ -76,7 +80,6 @@
 <script src="/js/pages/dashboard.js"></script>
 <script src="/js/pages/dailyClose.js"></script>
 <script src="/js/pages/kit.js"></script>
-<script src="/js/pages/catalogue.js"></script>
 <script src="/js/pages/millSetup.js"></script>
 <script src="/js/pages/users.js"></script>
 <script src="/js/pages/payments.js"></script>

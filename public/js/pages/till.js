@@ -62,6 +62,7 @@
       `<div class="row"><span>${esc(METHOD_NAME[x.method] || x.method)}${x.mpesa_receipt ? ` · ${esc(x.mpesa_receipt)}` : ''}</span><span>${fmt(x.amount)}</span></div>`).join('');
     return `<div class="rc-paper">
       <div class="rc-biz"><strong>${esc(b.business_name || 'Receipt')}</strong>${b.receipt_header ? `<div>${esc(b.receipt_header)}</div>` : ''}</div>
+      ${p.provisional ? '<div class="rc-prov">PROVISIONAL RECEIPT<br>Made offline. The final receipt is issued when it is sent.</div>' : ''}
       <div class="rc-line"></div>
       <div class="row"><span>Receipt</span><span>${esc(r.receipt_no)}${r.is_duplicate ? ' (DUPLICATE)' : ''}</span></div>
       <div class="row"><span>Date</span><span>${esc(when)}</span></div>
@@ -84,7 +85,8 @@
     '.rc-biz{text-align:center;margin-bottom:4px}.rc-biz strong{font-size:14px;display:block}' +
     '.rc-line{border-top:1px dashed #000;margin:6px 0}.row{display:flex;justify-content:space-between;gap:8px}' +
     '.big{font-weight:700;font-size:14px}.bal{font-weight:700}table{width:100%;border-collapse:collapse}' +
-    'td{padding:1px 0;vertical-align:top}td.r{text-align:right}td.d{font-weight:700}.rc-foot{text-align:center;margin-top:8px}';
+    'td{padding:1px 0;vertical-align:top}td.r{text-align:right}td.d{font-weight:700}.rc-foot{text-align:center;margin-top:8px}' +
+    '.rc-prov{text-align:center;font-weight:700;margin:6px 0}';
 
   function printReceipt(p) {
     const f = document.createElement('iframe');
@@ -100,14 +102,27 @@
       f.contentWindow.print();
       setTimeout(() => f.remove(), 2000);
     }, 250);
-    Api.post(`/receipts/${p.receipt.id}/printed`, {}).catch(() => {});
+    if (p.receipt.id) Api.post(`/receipts/${p.receipt.id}/printed`, {}).catch(() => {});
+  }
+
+  /** Plain text of a provisional receipt (the server makes the text for real receipts). */
+  function localText(p) {
+    const r = p.receipt, sale = p.sale || {}, b = p.business || {};
+    const out = [b.business_name || 'Receipt', `Receipt ${r.receipt_no} (PROVISIONAL)`, new Date(r.issued_at).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }),
+      `Customer: ${sale.customer_name || sale.walkin_name || 'Walk-in'}`, '------------------------'];
+    (p.lines || []).forEach((l) => { out.push(l.description); out.push(`  ${fmt(l.quantity)} ${l.unit_code || ''} x ${fmt(l.unit_price)} = ${fmt(l.line_total)}`); });
+    out.push('------------------------', `TOTAL: KES ${fmt(r.total_amount)}`, `Paid: KES ${fmt(r.amount_paid)}`);
+    if (num(r.balance_due) > 0) out.push(`Balance: KES ${fmt(r.balance_due)}`);
+    if (b.receipt_footer) out.push(b.receipt_footer);
+    return out.join('\n');
   }
 
   function showReceipt(p, change, opts = {}) {
     const phone = (p.sale && (p.sale.customer_phone || p.sale.walkin_phone)) || '';
     const m = UI.modal({
       title: opts.title || 'Sale complete',
-      body: `${change > 0 ? `<div class="gf-note gf-note-amber"><i class="bi bi-cash-coin"></i><span>Change to give: <b>KES ${fmt(change)}</b></span></div>` : ''}
+      body: `${opts.note ? `<div class="gf-note gf-note-amber"><i class="bi bi-wifi-off"></i><span>${esc(opts.note)}</span></div>` : ''}
+        ${change > 0 ? `<div class="gf-note gf-note-amber"><i class="bi bi-cash-coin"></i><span>Change to give: <b>KES ${fmt(change)}</b></span></div>` : ''}
         ${paperHtml(p)}
         <div class="gf-field"><label class="gf-label" for="rc-phone">WhatsApp number</label>
           <input class="gf-input plain" id="rc-phone" inputmode="tel" placeholder="0712345678" value="${esc(phone)}" autocomplete="off"></div>
@@ -121,6 +136,12 @@
       const phoneVal = m.el.querySelector('#rc-phone').value.trim();
       if (!phoneVal) { m.error('Enter the customer’s WhatsApp number.'); return; }
       m.error('');
+      if (p.provisional) { // no receipt on the server yet: build the message here
+        const d = phoneVal.replace(/\D/g, '');
+        const to = d.startsWith('0') ? `254${d.slice(1)}` : d;
+        window.open(`https://wa.me/${to}?text=${encodeURIComponent(localText(p))}`, '_blank', 'noopener');
+        return;
+      }
       m.busy(e.currentTarget, true);
       try {
         const r = await Api.post(`/receipts/${p.receipt.id}/whatsapp`, { phone: phoneVal });
@@ -320,7 +341,10 @@
         // ------------------------------------------------------------ painting: items
         function paintGrid() {
           if (s.loading) { gridEl.innerHTML = '<div class="dt-empty">Loading items…</div>'; return; }
-          const err = s.failed ? `<div class="gf-note gf-note-red" style="margin-bottom:12px"><i class="bi bi-wifi-off"></i><span>${esc(s.failed)}</span></div>` : '';
+          const upd = Offline.lastUpdated();
+          const off = Offline.isOffline()
+            ? `<div class="gf-note gf-note-amber till-offline-note"><i class="bi bi-wifi-off"></i><span>Offline. Prices and stock are from ${upd ? upd.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'the last time this computer was online'}. Sales are saved here and sent when the connection is back.</span></div>` : '';
+          const err = off + (s.failed ? `<div class="gf-note gf-note-red" style="margin-bottom:12px"><i class="bi bi-wifi-off"></i><span>${esc(s.failed)}</span></div>` : '');
           const term = s.search.toLowerCase();
           const rows = s.items.filter((i) => !term || String(i.name).toLowerCase().includes(term) || String(i.sku || '').toLowerCase().includes(term));
           if (!rows.length) {
@@ -495,14 +519,9 @@
         }
 
         // ------------------------------------------------------------ sale + payment
-        async function createSale(onCredit) {
-          let approval = null;
-          if (s.cart.some(isBelow) && !GF.can('price.override')) {
-            approval = await askApproval();
-            if (!approval) throw CANCELLED;
-          }
+        function saleBody(onCredit) {
           const body = {
-            module, post: true, on_credit: !!onCredit,
+            module, on_credit: !!onCredit,
             lines: s.cart.map((l) => {
               if (l.kind === 'MILLING') return { line_type: 'MILLING', mill_job_id: l.job_id };
               const line = { item_id: l.item_id, unit_id: l.unit_id, quantity: num(l.qty) };
@@ -515,6 +534,16 @@
           if (registered()) body.customer_id = s.customer.id;
           else { body.walkin_name = s.walkinName.trim() || 'Walk-in'; if (s.walkinPhone.trim()) body.walkin_phone = s.walkinPhone.trim(); }
           if (canDiscount && calc().disc > 0) body.discount_amount = calc().disc;
+          return body;
+        }
+
+        async function createSale(onCredit) {
+          let approval = null;
+          if (s.cart.some(isBelow) && !GF.can('price.override')) {
+            approval = await askApproval();
+            if (!approval) throw CANCELLED;
+          }
+          const body = { ...saleBody(onCredit), post: true };
           if (approval) Object.assign(body, approval);
           // a wrong manager password answers 401, which must not sign the cashier out
           return Api.post('/sales', body, approval ? { handle401: false } : undefined);
@@ -536,6 +565,64 @@
         async function completeAfterStk() {
           try { s.sale = await Api.get(`/sales/${s.sale.id}`); } catch (_) { /* receipt still works */ }
           await finish(0);
+        }
+
+        /**
+         * Cash, M-Pesa code and credit sales: the sale, its payment and its receipt go to the server as ONE saved step.
+         * With no connection (or if it drops half way) the step is kept on this computer and sent later, and a
+         * provisional receipt is printed. The server never records the same step twice.
+         */
+        async function chargeDirect(m, v) {
+          const reg = registered();
+          const body = saleBody(v.method === 'CREDIT');
+          const total = calc().total;
+          const payments = [];
+          let change = 0;
+          if (v.method === 'CASH') {
+            payments.push({ method: 'CASH', amount: r2(Math.min(v.tendered, total)) });
+            change = r2(Math.max(0, v.tendered - total));
+          } else if (v.method === 'MPESA_MANUAL') {
+            payments.push({ method: 'MPESA_MANUAL', amount: r2(Math.min(v.amount, total)), mpesa_receipt: v.code, payer_phone: v.phone || undefined });
+          } else if (v.payNow > 0) {
+            payments.push({ method: 'CASH', amount: r2(Math.min(v.payNow, total)) });
+          }
+          if (v.method === 'CREDIT' && Offline.isOffline()) { // the server checks again when it receives the sale
+            const c = s.customer || {};
+            if (num(c.credit_limit) > 0 && num(c.balance) + total > num(c.credit_limit) + 0.005) {
+              throw new Error(`This would take ${c.full_name || 'the customer'} over their credit limit of ${UI.money(c.credit_limit)}.`);
+            }
+          }
+          const paid = r2(payments.reduce((t, p) => t + p.amount, 0));
+          const balance = r2(total - paid);
+          const localNo = await Offline.nextLocalNo();
+          const cust = reg ? (s.customer.full_name || s.customer.business_name || 'Customer') : (body.walkin_name || 'Walk-in');
+          const snapshot = {
+            provisional: true,
+            receipt: { id: null, receipt_no: localNo, issued_at: new Date().toISOString(), is_duplicate: false, total_amount: total, amount_paid: paid, balance_due: balance },
+            business: Offline.business() || {},
+            sale: { customer_name: reg ? cust : null, walkin_name: reg ? null : cust, customer_phone: reg ? s.customer.phone : body.walkin_phone, cashier_name: GF.user.full_name || GF.user.name || '', discount_amount: body.discount_amount || 0 },
+            lines: s.cart.map((l) => (l.kind === 'MILLING'
+              ? { description: l.label, quantity: 1, unit_code: '', unit_price: l.amount, line_total: l.amount }
+              : { description: l.name, quantity: num(l.qty), unit_code: l.unit_name, unit_price: num(l.price), line_total: lineAmt(l) })),
+            payments: payments.map((p) => ({ method: p.method, amount: p.amount, mpesa_receipt: p.mpesa_receipt })),
+          };
+          const res = await Offline.submit('sale', { ...body, payments }, {
+            local_no: localNo,
+            meta: {
+              label: `${mill ? 'Mill' : 'Cereal'} sale · ${UI.money(total)} · ${cust}`,
+              balance_due: balance,
+              stock: s.cart.filter((l) => l.kind === 'ITEM').map((l) => ({ item_id: l.item_id, kg: num(l.qty) * l.kg })),
+            },
+          });
+          const queued = res.status === 'queued';
+          m.close();
+          resetTill();
+          showReceipt(queued ? snapshot : res.result.printable, change, queued ? {
+            title: 'Sale saved on this computer',
+            note: res.reason === 'AUTH'
+              ? 'Your sign-in has expired. This sale is safe on this computer; sign in again and it will be sent.'
+              : 'Saved on this computer. It is sent to the server by itself when the connection is back. Give the customer this provisional receipt.',
+          } : {});
         }
 
         function openPay() {
@@ -651,6 +738,19 @@
             }
             try { localStorage.setItem(METHOD_KEY, method); } catch (_) { /* optional */ }
 
+            // things that need the server's answer on the spot cannot be saved for later
+            const needsApproval = !s.sale && s.cart.some(isBelow) && !GF.can('price.override');
+            if (Offline.isOffline()) {
+              if (method === 'MPESA_STK') { m.error(`M-Pesa prompts need the internet. Take cash${canCode ? ', or choose “M-Pesa code” and enter the code from the customer’s SMS' : ''}.`); return; }
+              if (needsApproval) { m.error('Selling below the minimum price needs a manager’s approval, and that needs the internet. Change the price, or wait until the connection is back.'); return; }
+            }
+            if (!s.sale && method !== 'MPESA_STK' && !needsApproval) {
+              m.busy(okBtn, true);
+              try { await chargeDirect(m, { method, tendered, amount, code, payNow, phone: f.phone }); }
+              catch (err) { m.error(err.message || 'Something went wrong. Try again.'); m.busy(okBtn, false); }
+              return;
+            }
+
             m.busy(okBtn, true);
             try {
               if (!s.sale) {
@@ -723,7 +823,7 @@
           const it = itemOf(Number(card.dataset.item)); if (it) addItem(it);
         });
         if (jobsEl) jobsEl.addEventListener('click', (e) => {
-          const b = e.target.closest('[data-job]'); if (b && !b.disabled) addJob(Number(b.dataset.job));
+          const b = e.target.closest('[data-job]'); if (b && !b.disabled) addJob(/^\d+$/.test(b.dataset.job) ? Number(b.dataset.job) : b.dataset.job);
         });
 
         linesEl.addEventListener('input', (e) => {

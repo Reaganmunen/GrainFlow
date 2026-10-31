@@ -23,7 +23,10 @@
 
   // ---------- already signed in? ----------
   if (Session.active) {
-    Api.get('/auth/me', { handle401: false }).then(goHome).catch(() => Session.clear());
+    Api.get('/auth/me', { handle401: false }).then(goHome).catch((err) => {
+      // no connection is not a reason to sign the person out: they can keep working offline
+      if (err && err.code === 'NETWORK') goHome(); else Session.clear();
+    });
   } else {
     Session.clear();
   }

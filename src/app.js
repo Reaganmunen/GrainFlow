@@ -48,6 +48,19 @@ const LOG_FORMAT = isProd
   : ':method :safe-url :status :response-time ms - :res[content-length]';
 if (process.env.NODE_ENV !== 'test') app.use(morgan(LOG_FORMAT));
 
+// ---------- offline: the service worker keeps the app on the computer so it opens with no internet ----------
+// Built on request (it lists every file in /public). Must be served from the root so it can cover the whole app, and must
+// never be cached for long, otherwise a new release would not reach the tills. Its own CSP lets it fetch the font/icon CDNs.
+app.get('/sw.js', (req, res) => {
+  res.set({
+    'Content-Type': 'application/javascript; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    'Service-Worker-Allowed': '/',
+    'Content-Security-Policy': "default-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com",
+  });
+  res.send(require('./services/serviceWorker').render(PUBLIC_DIR));
+});
+
 // ---------- static frontend ----------
 app.use(express.static(PUBLIC_DIR, { index: 'index.html', maxAge: isProd ? '1h' : 0 }));
 

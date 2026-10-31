@@ -74,7 +74,7 @@
         const rows = s.items.filter((i) => (!term || String(i.name).toLowerCase().includes(term) || String(i.sku || '').toLowerCase().includes(term)) && (s.chip !== 'unpriced' || !priced(i)));
         if (!rows.length) {
           hostEl.innerHTML = `${err}<div class="dt-empty"><div class="tile"><i class="bi bi-tags"></i></div><h3>${s.search || s.chip ? 'No items match' : 'No items yet'}</h3>
-            <p>${s.search || s.chip ? 'Try clearing the filters.' : 'Add the products you sell under Products in the menu first.'}</p></div>`;
+            <p>${s.search || s.chip ? 'Try clearing the filters.' : 'Add the grains you sell in the catalogue first.'}</p></div>`;
           return;
         }
         const body = rows.map((i) => {
@@ -107,7 +107,7 @@
         catch (err) { m.error(err.message); m.el.querySelector('[data-loading]').remove(); return; }
         const body = m.el.querySelector('.gf-modal-body');
         body.querySelector('[data-loading]').remove();
-        if (!units.length) { m.error('This item has no sellable units. Add a unit to it under Products in the menu first.'); return; }
+        if (!units.length) { m.error('This item has no sellable units. Add a unit to it in the catalogue first.'); return; }
 
         const e = s.byItem[item.id] || { RETAIL: [], WHOLESALE: [] };
         const current = (tier, unit) => (e[tier] || []).find((p) => p.unit === unit.code);
