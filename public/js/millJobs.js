@@ -392,7 +392,7 @@
             Api.get('/mill/machines?active=true').catch(() => []),
           ]);
         } catch (err) { m.error(err.message); return; }
-        if (!grains.length) { m.error('No millable grains are set up yet. Add one in the catalogue first.'); return; }
+        if (!grains.length) { m.error('No millable grains are set up yet. Add one under Products in the menu first (tick “Can be milled”).'); return; }
 
         const f = { type: 'CUSTOMER', who: 'registered', customer: null, rate: null };
         const body = m.el.querySelector('.gf-modal-body');

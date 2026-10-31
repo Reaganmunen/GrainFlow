@@ -18,6 +18,8 @@ module.exports = {
 
   items: controller({
     async list(req, res) { page(res, await Item.list(req.query)); },
+    /** GET /items/kinds -> { enum, kinds[] } for the product form */
+    async kinds(req, res) { ok(res, await Item.kinds()); },
     async get(req, res) { ok(res, found(await Item.findById(req.params.id), 'Item')); },
     async create(req, res) { created(res, await Item.create(req.body, req.ctx)); },
     async update(req, res) { ok(res, await Item.update(req.params.id, req.body, req.ctx)); },

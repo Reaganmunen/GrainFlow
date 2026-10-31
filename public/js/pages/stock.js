@@ -206,7 +206,7 @@
           let items;
           try { items = (await Api.get('/items?active=true&limit=200')) || []; } catch (e) { m.error(e.message); return; }
           items = items.filter((i) => i.track_stock !== false);
-          if (!items.length) { m.error('No items yet. Add items in the catalogue first.'); return; }
+          if (!items.length) { m.error('No products yet. Add them under Products in the menu first.'); return; }
 
           const body = m.el.querySelector('.gf-modal-body');
           body.querySelector('[data-loading]').remove();

@@ -54,6 +54,7 @@
           item('mill/machines', 'Machines and power', 'bi-lightning-charge', 'mill.view'),
           item('mill/rates', 'Milling rates', 'bi-tag', 'mill.view'),
           item('mill/stock', 'Mill stock', 'bi-boxes', 'stock.view'),
+          item('mill/catalogue', 'Products', 'bi-box-seam', ['catalogue.items', 'catalogue.manage']),
         ]},
         SHARED_PEOPLE, SHARED_MONEY, ADMIN,
       ],
@@ -71,6 +72,7 @@
         ]},
         { label: 'Stock and buying', items: [
           item('cereal/stock', 'Stock', 'bi-boxes', 'stock.view'),
+          item('cereal/catalogue', 'Products', 'bi-box-seam', ['catalogue.items', 'catalogue.manage']),
           item('cereal/purchases', 'Purchases', 'bi-cart-plus', 'purchases.view'),
           item('cereal/adjustments', 'Losses and stock takes', 'bi-clipboard-data', 'stock.view'),
           item('shared/transfers', 'Mill transfers', 'bi-arrow-left-right', 'stock.transfer'),

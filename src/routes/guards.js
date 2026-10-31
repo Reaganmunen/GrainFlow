@@ -3,7 +3,7 @@
  * authenticate must set req.user, req.token, req.ctx and req.can(permission) (the controllers rely on these).
  */
 const AppError = require('../utils/AppError');
-const { authenticate, authenticateAllowPasswordChange } = require('../middlewares/auth');
+const { authenticate } = require('../middlewares/auth');
 const { verifyMpesaCallback } = require('../middlewares/mpesaCallback');
 const { requireApproval, optionalApproval } = require('../middlewares/approval');
 
@@ -17,4 +17,4 @@ const permit = (...perms) => (req, res, next) => {
   return next(new AppError('You are not allowed to do this', 403, { code: 'FORBIDDEN', required: perms }));
 };
 
-module.exports = { authenticate, authenticateAllowPasswordChange, verifyMpesaCallback, requireApproval, optionalApproval, permit };
+module.exports = { authenticate, verifyMpesaCallback, requireApproval, optionalApproval, permit };

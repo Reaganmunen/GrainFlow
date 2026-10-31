@@ -28,6 +28,18 @@ class Item {
     );
   }
 
+  /** Allowed values for items.kind: the enum labels when the column is an enum, otherwise the kinds already in use. */
+  static async kinds(ctx) {
+    const db = exec(ctx);
+    const e = await db.query(
+      `SELECT e.enumlabel AS v FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid
+         JOIN pg_enum e ON e.enumtypid = a.atttypid
+        WHERE c.relname = 'items' AND a.attname = 'kind' ORDER BY e.enumsortorder`);
+    if (e.rows.length) return { enum: true, kinds: e.rows.map((r) => r.v) };
+    const used = await db.query('SELECT DISTINCT kind::text AS v FROM items WHERE kind IS NOT NULL ORDER BY 1');
+    return { enum: false, kinds: used.rows.map((r) => r.v) };
+  }
+
   static async findById(id, ctx) {
     const db = exec(ctx);
     const item = (await db.query(

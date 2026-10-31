@@ -258,7 +258,7 @@
         try { [sup, itm] = await Promise.all([suppliers(), items()]); }
         catch (err) { m.error(err.message); m.el.querySelector('[data-loading]').remove(); return; }
         if (!sup.length) { m.error('Add a supplier first (People > Suppliers), then come back.'); m.el.querySelector('[data-loading]').remove(); return; }
-        if (!itm.length) { m.error('No items are set up yet. Add the grains in the catalogue first.'); m.el.querySelector('[data-loading]').remove(); return; }
+        if (!itm.length) { m.error('No products are set up yet. Add them under Products in the menu first.'); m.el.querySelector('[data-loading]').remove(); return; }
 
         const canPost = GF.can('purchases.post');
         const POOLS = [['CEREAL_STOCK', 'Cereal stock', 'CEREAL'], ['MILL_STOCK', 'Mill stock', 'MILL']].filter((p) => GF.inModule(p[2])); // only your own side
