@@ -1,0 +1,10 @@
+[
+  { "username": "owner1",  "full_name": "Owner One",   "role": "OWNER",          "phone": "0700000001" },
+  { "username": "owner2",  "full_name": "Owner Two",   "role": "OWNER",          "phone": "0700000002" },
+
+  { "username": "millmgr", "full_name": "Mill Manager",   "role": "MILL_MANAGER",   "phone": "0700000003" },
+  { "username": "miller1", "full_name": "Miller",         "role": "MILLER",         "phone": "0700000004" },
+
+  { "username": "cermgr",  "full_name": "Cereal Manager", "role": "CEREAL_MANAGER", "phone": "0700000005" },
+  { "username": "cashier1","full_name": "Cereal Cashier", "role": "CEREAL_CASHIER", "phone": "0700000006" }
+]

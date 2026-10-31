@@ -6,10 +6,14 @@ types.setTypeParser(20, (v) => parseInt(v, 10));
 types.setTypeParser(1700, (v) => parseFloat(v));
 types.setTypeParser(1082, (v) => v);
 
-const ssl = process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false;
+// DB_SSL=true -> encrypted AND certificate-checked (Neon uses a normal public certificate). Only set DB_SSL_INSECURE=true for a self-signed server.
+const ssl = process.env.DB_SSL === 'true' ? { rejectUnauthorized: process.env.DB_SSL_INSECURE !== 'true' } : false;
+
+// Serverless: every warm instance holds its own pool, so keep it small there (many instances x 10 would exhaust the database).
+const POOL_MAX = Number(process.env.DB_POOL_MAX) || (process.env.VERCEL ? 3 : 10);
 
 // Neon scales to zero when idle, so the first connection after a quiet spell can be slow: allow time, and drop idle clients early.
-const POOL_OPTS = { max: 10, connectionTimeoutMillis: 15000, idleTimeoutMillis: 30000, keepAlive: true };
+const POOL_OPTS = { max: POOL_MAX, connectionTimeoutMillis: 15000, idleTimeoutMillis: 30000, keepAlive: true };
 
 const pool = new Pool(
   process.env.DATABASE_URL

@@ -5,7 +5,9 @@ const cors = require('cors');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
+const crypto = require('crypto');
 const routes = require('./routes');
+const { noStore } = require('./middlewares/security');
 
 const app = express();
 const isProd = process.env.NODE_ENV === 'production';
@@ -39,13 +41,34 @@ if (process.env.CORS_ORIGIN) {
 }
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-if (process.env.NODE_ENV !== 'test') app.use(morgan(isProd ? 'combined' : 'dev'));
+// the M-Pesa callback URL carries a secret: never write it to the logs
+morgan.token('safe-url', (req) => String(req.originalUrl || req.url).replace(/(\/stk-callback\/)[^/?\s]+/, '$1***'));
+const LOG_FORMAT = isProd
+  ? ':remote-addr [:date[clf]] ":method :safe-url HTTP/:http-version" :status :res[content-length] ":user-agent" :response-time ms'
+  : ':method :safe-url :status :response-time ms - :res[content-length]';
+if (process.env.NODE_ENV !== 'test') app.use(morgan(LOG_FORMAT));
 
 // ---------- static frontend ----------
 app.use(express.static(PUBLIC_DIR, { index: 'index.html', maxAge: isProd ? '1h' : 0 }));
 
 // ---------- API ----------
 app.get('/api/health', (req, res) => res.json({ success: true, data: { status: 'ok', time: new Date().toISOString() } }));
+
+// money data must never be cached by the browser or a proxy
+app.use('/api', noStore);
+
+// Daily housekeeping, called by Vercel Cron (vercel.json). Needs CRON_SECRET in the environment; Vercel sends it as a Bearer token.
+app.get('/api/cron/daily', async (req, res, next) => {
+  try {
+    const secret = process.env.CRON_SECRET || '';
+    const sent = String(req.get('authorization') || '');
+    const want = `Bearer ${secret}`;
+    const okAuth = secret && sent.length === want.length && crypto.timingSafeEqual(Buffer.from(sent), Buffer.from(want));
+    if (!okAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const { Session } = require('./models');
+    res.json({ success: true, data: { sessions_purged: await Session.purgeExpired() } });
+  } catch (err) { next(err); }
+});
 
 // slow down password guessing (the account lockout in User.authenticate still applies)
 app.use('/api/auth/login', rateLimit({
@@ -84,8 +107,15 @@ app.use((err, req, res, next) => {
   }
 
   const body = { success: false, message };
-  if (err.code && typeof err.code === 'string' && !/^\d/.test(err.code) && err.code !== 'P0001') body.code = err.code;
-  if (err.details !== undefined) body.details = err.details;
+  let details = err.details;
+  if (details && typeof details === 'object' && details.code) { // AppError(..., { code, ...extra }): code goes to the top level
+    const { code, ...rest } = details;
+    body.code = code;
+    details = Object.keys(rest).length ? rest : undefined;
+  } else if (err.code && typeof err.code === 'string' && !/^\d/.test(err.code) && err.code !== 'P0001') {
+    body.code = err.code;
+  }
+  if (details !== undefined) body.details = details;
   res.status(status).json(body);
 });
 
