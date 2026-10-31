@@ -48,8 +48,8 @@
 
       async function lookups() {
         if (s.lookups) return s.lookups;
-        const [grains, grades, units] = await Promise.all([Api.get('/grains'), Api.get('/grades'), Api.get('/units')]);
-        s.lookups = { grains: grains || [], grades: grades || [], units: units || [] };
+        const [grains, grades, units, kinds] = await Promise.all([Api.get('/grains'), Api.get('/grades'), Api.get('/units'), Api.get('/items/kinds').catch(() => [])]);
+        s.lookups = { grains: grains || [], grades: grades || [], units: units || [], kinds: kinds || [] };
         return s.lookups;
       }
 
@@ -134,7 +134,7 @@
         });
         let L;
         try { L = await lookups(); } catch (err) { m.error(err.message); return; }
-        const kinds = [...new Set(s.items.map((i) => i.kind).filter(Boolean))];
+        const kinds = L.kinds.length ? L.kinds : [...new Set(s.items.map((x) => x.kind).filter(Boolean))];
         const i = item || { kind: kinds[0] || '', owner_module: GF.modules.length === 1 ? GF.modules[0] : 'CEREAL', track_stock: true, is_active: true, is_millable: false };
         const body = m.el.querySelector('.gf-modal-body');
         body.querySelector('[data-loading]').remove();
@@ -145,7 +145,7 @@
             <div class="gf-field"><label class="gf-label" for="f-sku">SKU</label><input class="gf-input plain" id="f-sku" value="${esc(i.sku || '')}" placeholder="e.g. MZ-WHT" style="text-transform:uppercase"></div>
           </div>
           <div class="gf-row2">
-            <div class="gf-field"><label class="gf-label" for="f-kind">Kind</label><input class="gf-input plain" id="f-kind" list="f-kinds" value="${esc(i.kind || '')}" placeholder="Pick or type" ${editing ? '' : ''}><datalist id="f-kinds">${kinds.map((k) => `<option value="${esc(k)}">`).join('')}</datalist></div>
+            <div class="gf-field"><label class="gf-label" for="f-kind">Kind</label><select class="gf-input plain" id="f-kind"><option value="">Choose…</option>${kinds.map((k) => `<option value="${esc(k)}" ${i.kind === k ? 'selected' : ''}>${esc(pretty(k))}</option>`).join('')}</select>${kinds.length ? '' : '<span class="gf-hint">Could not read the allowed kinds from the database.</span>'}</div>
             <div class="gf-field"><label class="gf-label" for="f-mod">Belongs to</label><select class="gf-input plain" id="f-mod">${['CEREAL', 'MILL', 'SHARED'].filter((x) => x === 'SHARED' ? GF.isOwner : GF.inModule(x)).map((x) => `<option value="${x}" ${i.owner_module === x ? 'selected' : ''}>${MODULE_LABEL[x]}</option>`).join('')}</select></div>
           </div>
           <div class="gf-row2">

@@ -20,6 +20,21 @@ lookup('/price-tiers', catalogue.tiers);
 
 const items = catalogue.items;
 router.get('/items/pos', scopeLists, items.pos); // before /items/:id
+// the kinds the database allows for an item (an enum, or a CHECK list), so the form offers only valid ones
+router.get('/items/kinds', async (req, res, next) => {
+  try {
+    const { pool } = require('../config/db');
+    const e = await pool.query(
+      `SELECT e.enumlabel FROM pg_attribute a JOIN pg_type t ON t.oid = a.atttypid JOIN pg_enum e ON e.enumtypid = t.oid
+        WHERE a.attrelid = 'pmc.items'::regclass AND a.attname = 'kind' ORDER BY e.enumsortorder`);
+    let values = e.rows.map((r) => r.enumlabel);
+    if (!values.length) { // a text column limited by a CHECK: read the quoted words out of the rule
+      const c = await pool.query(`SELECT pg_get_constraintdef(oid) AS d FROM pg_constraint WHERE conrelid = 'pmc.items'::regclass AND contype = 'c' AND pg_get_constraintdef(oid) ILIKE '%kind%'`);
+      values = [...new Set(c.rows.flatMap((r) => [...r.d.matchAll(/'([A-Za-z0-9_ ]+)'/g)].map((m) => m[1])))];
+    }
+    res.json({ success: true, data: values });
+  } catch (err) { next(err); }
+});
 router.get('/items', scopeLists, items.list);
 router.post('/items', manage, items.create);
 router.get('/items/:id', items.get);
